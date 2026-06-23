@@ -147,14 +147,19 @@ code { color: var(--accent); font-family: ui-monospace, 'SFMono-Regular', Menlo,
 .activity-time { font-size: 0.76rem; white-space: nowrap; }
 
 /* Achievements */
-.achievement-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.achievement { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.02); }
-.achievement.locked { opacity: 0.6; }
-.achievement-glyph { font-size: 1.3rem; color: var(--gold); filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.5)); }
-.achievement.locked .achievement-glyph { color: var(--muted); filter: none; }
-.achievement-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.achievement-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.achievement { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.02); }
+.achievement.locked { opacity: 0.62; }
+.achievement.in-progress { border-color: rgba(125, 211, 252, 0.28); }
+.achievement-glyph { font-size: 1.3rem; line-height: 1.2; color: var(--gold); filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.5)); }
+.achievement.locked .achievement-glyph, .achievement.in-progress .achievement-glyph { color: var(--muted); filter: none; }
+.achievement-main { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+.achievement-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .achievement-name { font-weight: 600; }
-.achievement-main .muted { font-size: 0.78rem; }
+.achievement-desc { font-size: 0.78rem; }
+.achievement-meta { font-size: 0.74rem; white-space: nowrap; }
+.achievement-progress { display: flex; align-items: center; gap: 10px; }
+.achievement-progress .meter { flex: 1; }
 
 /* Player (Hunter) stats */
 .player-stats { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 22px; }

@@ -1,5 +1,5 @@
 import type { AsyncState } from './api.js';
-import { formatNumber, ratioPercent, relativeTime, splitQuests, weekdayLabel, xpProgressPercent } from './format.js';
+import { formatDate, formatNumber, ratioPercent, relativeTime, splitQuests, weekdayLabel, xpProgressPercent } from './format.js';
 import type {
   AchievementsResponse,
   Boundaries,
@@ -165,7 +165,7 @@ const NOTIFICATION_META: Record<NotificationType, { glyph: string; tone: string 
 
 export function Notifications({ notifications }: { notifications: AsyncState<NotificationsResponse> }) {
   return (
-    <Card title="System Notifications" icon="🔔" span={2}>
+    <Card title="System Notifications" icon="🔔" span={3}>
       <Async
         state={notifications}
         isEmpty={(data) => data.notifications.length === 0}
@@ -227,7 +227,7 @@ function QuestList({ quests, emptyMessage }: { quests: Quest[]; emptyMessage: st
 
 export function DailyQuests({ quests }: { quests: AsyncState<QuestsResponse> }) {
   return (
-    <Card title="Daily Quests" icon="🗡">
+    <Card title="Daily Quests" icon="🗡" span={2}>
       <Async state={quests} loadingLabel="Fetching quests…">
         {(data) => (
           <QuestList
@@ -257,7 +257,7 @@ export function MainQuests({ quests }: { quests: AsyncState<QuestsResponse> }) {
 
 export function RecentActivity({ timeline }: { timeline: AsyncState<TimelineResponse> }) {
   return (
-    <Card title="Recent Activity" icon="🛰" span={2}>
+    <Card title="Recent Activity" icon="🛰" span={3}>
       <Async
         state={timeline}
         isEmpty={(data) => data.items.length === 0}
@@ -287,9 +287,12 @@ export function RecentActivity({ timeline }: { timeline: AsyncState<TimelineResp
   );
 }
 
+// Core progression section: a full-width grid of every achievement, unlocked first.
+// Each cell shows its icon, title, description, status, and either its unlock date
+// (unlocked) or progress toward the target (locked / in progress).
 export function Achievements({ achievements }: { achievements: AsyncState<AchievementsResponse> }) {
   return (
-    <Card title="Achievements" icon="🏆">
+    <Card title="Achievements" icon="🏆" span={3}>
       <Async
         state={achievements}
         isEmpty={(data) => data.achievements.length === 0}
@@ -297,24 +300,39 @@ export function Achievements({ achievements }: { achievements: AsyncState<Achiev
         loadingLabel="Loading achievements…"
       >
         {(data) => (
-          <ul className="achievement-list">
-            {data.achievements.map((a) => (
-              <li key={a.id} className={`achievement ${a.unlocked ? 'unlocked' : 'locked'}`}>
-                <span className="achievement-glyph" aria-hidden>
-                  {a.unlocked ? '★' : '☆'}
-                </span>
-                <span className="achievement-main">
-                  <span className="achievement-name">{a.name}</span>
-                  {a.description ? <span className="muted">{a.description}</span> : null}
-                  {!a.unlocked ? (
-                    <span className="muted">
-                      {a.progress}/{a.target}
-                    </span>
-                  ) : null}
-                </span>
-                {a.tier ? <Badge tone="muted">{a.tier}</Badge> : null}
-              </li>
-            ))}
+          <ul className="achievement-grid">
+            {data.achievements.map((a) => {
+              const inProgress = !a.unlocked && a.progress > 0;
+              const status = a.unlocked ? 'unlocked' : inProgress ? 'in progress' : 'locked';
+              const statusTone = a.unlocked ? 'easy' : inProgress ? 'normal' : 'muted';
+              const stateClass = a.unlocked ? 'unlocked' : inProgress ? 'in-progress' : 'locked';
+              return (
+                <li key={a.id} className={`achievement ${stateClass}`}>
+                  <span className="achievement-glyph" aria-hidden>
+                    {a.unlocked ? '★' : '☆'}
+                  </span>
+                  <div className="achievement-main">
+                    <div className="achievement-head">
+                      <span className="achievement-name">{a.name}</span>
+                      <Badge tone={statusTone}>{status}</Badge>
+                    </div>
+                    {a.description ? <span className="achievement-desc muted">{a.description}</span> : null}
+                    {a.unlocked ? (
+                      <span className="achievement-meta muted">
+                        {a.unlockedAt ? `Unlocked ${formatDate(a.unlockedAt)}` : 'Unlocked'}
+                      </span>
+                    ) : (
+                      <div className="achievement-progress">
+                        <ProgressBar percent={ratioPercent(a.progress, a.target)} />
+                        <span className="achievement-meta muted">
+                          {a.progress}/{a.target}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </Async>

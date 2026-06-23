@@ -52,6 +52,13 @@ export function relativeTime(iso: string, now: number = Date.now()): string {
   return `${weeks}w ago`;
 }
 
+/** Readable absolute date (e.g. "Jun 23, 2026") for an ISO instant. */
+export function formatDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(d);
+}
+
 /** Short weekday + day label for a YYYY-MM-DD local date string. */
 export function weekdayLabel(date: string): string {
   const [year, month, day] = date.split('-').map(Number);

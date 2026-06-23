@@ -72,8 +72,8 @@ export function App() {
         <DailyQuests quests={quests} />
         <MainQuests quests={quests} />
         <Notifications notifications={notifications} />
-        <RecentActivity timeline={timeline} />
         <Achievements achievements={achievements} />
+        <RecentActivity timeline={timeline} />
         <WeeklyReportSection report={weekly} />
       </div>
 
