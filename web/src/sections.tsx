@@ -39,7 +39,7 @@ export function Profile({
   boundaries: AsyncState<Boundaries>;
 }) {
   return (
-    <Card title="Hunter Profile" icon="◈" span={2} accent>
+    <Card title="Hunter Profile" icon="◈" area="profile" accent>
       <Async state={summary} loadingLabel="Reading profile…">
         {(data) => (
           <div className="profile">
@@ -82,7 +82,7 @@ export function Profile({
 
 export function XpBar({ summary }: { summary: AsyncState<Summary> }) {
   return (
-    <Card title="Experience" icon="⚡">
+    <Card title="Experience" icon="⚡" area="experience">
       <Async state={summary} loadingLabel="Calculating XP…">
         {(data) => {
           const percent = xpProgressPercent(data.rank.xpIntoLevel, data.rank.xpForNextLevel);
@@ -113,7 +113,7 @@ export function XpBar({ summary }: { summary: AsyncState<Summary> }) {
 // the spread between attributes is legible even before any hard cap is reached.
 export function PlayerStats({ player }: { player: AsyncState<PlayerStatsResponse> }) {
   return (
-    <Card title="Hunter Stats" icon="⚔" span={2} accent>
+    <Card title="Hunter Stats" icon="⚔" area="stats" accent>
       <Async state={player} loadingLabel="Reading attributes…">
         {(data) => {
           const max = Math.max(1, ...data.stats.map((s) => s.value));
@@ -139,7 +139,7 @@ export function PlayerStats({ player }: { player: AsyncState<PlayerStatsResponse
 // Demoted secondary metrics — activity counts that used to be the "Vital Stats" focus.
 export function ActivityMetrics({ summary }: { summary: AsyncState<Summary> }) {
   return (
-    <Card title="Activity Metrics" icon="📊">
+    <Card title="Activity Metrics" icon="📊" area="metrics">
       <Async state={summary} loadingLabel="Loading metrics…">
         {(data) => (
           <div className="stat-grid">
@@ -165,7 +165,7 @@ const NOTIFICATION_META: Record<NotificationType, { glyph: string; tone: string 
 
 export function Notifications({ notifications }: { notifications: AsyncState<NotificationsResponse> }) {
   return (
-    <Card title="System Notifications" icon="🔔" span={3}>
+    <Card title="System Notifications" icon="🔔" area="notify">
       <Async
         state={notifications}
         isEmpty={(data) => data.notifications.length === 0}
@@ -227,7 +227,7 @@ function QuestList({ quests, emptyMessage }: { quests: Quest[]; emptyMessage: st
 
 export function DailyQuests({ quests }: { quests: AsyncState<QuestsResponse> }) {
   return (
-    <Card title="Daily Quests" icon="🗡" span={2}>
+    <Card title="Daily Quests" icon="🗡" area="daily">
       <Async state={quests} loadingLabel="Fetching quests…">
         {(data) => (
           <QuestList
@@ -242,7 +242,7 @@ export function DailyQuests({ quests }: { quests: AsyncState<QuestsResponse> }) 
 
 export function MainQuests({ quests }: { quests: AsyncState<QuestsResponse> }) {
   return (
-    <Card title="Main Quests" icon="🏰">
+    <Card title="Main Quests" icon="🏰" area="main">
       <Async state={quests} loadingLabel="Fetching quests…">
         {(data) => (
           <QuestList
@@ -257,7 +257,7 @@ export function MainQuests({ quests }: { quests: AsyncState<QuestsResponse> }) {
 
 export function RecentActivity({ timeline }: { timeline: AsyncState<TimelineResponse> }) {
   return (
-    <Card title="Recent Activity" icon="🛰" span={3}>
+    <Card title="Recent Activity" icon="🛰" area="recent">
       <Async
         state={timeline}
         isEmpty={(data) => data.items.length === 0}
@@ -292,7 +292,7 @@ export function RecentActivity({ timeline }: { timeline: AsyncState<TimelineResp
 // (unlocked) or progress toward the target (locked / in progress).
 export function Achievements({ achievements }: { achievements: AsyncState<AchievementsResponse> }) {
   return (
-    <Card title="Achievements" icon="🏆" span={3}>
+    <Card title="Achievements" icon="🏆" area="achievements">
       <Async
         state={achievements}
         isEmpty={(data) => data.achievements.length === 0}
@@ -342,7 +342,7 @@ export function Achievements({ achievements }: { achievements: AsyncState<Achiev
 
 export function WeeklyReportSection({ report }: { report: AsyncState<WeeklyReport> }) {
   return (
-    <Card title="Weekly Report" icon="📜" span={3}>
+    <Card title="Weekly Report" icon="📜" area="weekly">
       <Async state={report} loadingLabel="Compiling weekly report…">
         {(data) => {
           const maxXp = Math.max(1, ...data.days.map((d) => d.xp));

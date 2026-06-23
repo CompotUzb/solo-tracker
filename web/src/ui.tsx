@@ -9,6 +9,7 @@ export function Card({
   title,
   icon,
   span,
+  area,
   accent,
   action,
   children,
@@ -16,11 +17,14 @@ export function Card({
   title: string;
   icon?: string;
   span?: 1 | 2 | 3;
+  area?: string;
   accent?: boolean;
   action?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const className = ['card', span ? `span-${span}` : '', accent ? 'card-accent' : ''].filter(Boolean).join(' ');
+  const className = ['card', area ? `area-${area}` : '', span ? `span-${span}` : '', accent ? 'card-accent' : '']
+    .filter(Boolean)
+    .join(' ');
   return (
     <section className={className}>
       <header className="card-head">

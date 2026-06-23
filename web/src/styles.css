@@ -43,10 +43,35 @@ body {
 .live-on .live-dot { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
 .live-off { color: var(--muted); }
 
-/* Layout grid */
-.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
-.span-2 { grid-column: span 2; }
-.span-3 { grid-column: span 3; }
+/* Layout grid — 12-column named areas. The left eight columns carry the main flow;
+   the right four hold Experience, Activity Metrics, and the tall Achievements panel. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 18px;
+  grid-template-areas:
+    "profile profile profile profile profile profile profile profile experience experience experience experience"
+    "stats   stats   stats   stats   stats   stats   stats   stats   metrics     metrics     metrics     metrics"
+    "daily   daily   daily   daily   main    main    main    main    metrics     metrics     metrics     metrics"
+    "notify  notify  notify  notify  notify  notify  notify  notify  achievements achievements achievements achievements"
+    "recent  recent  recent  recent  recent  recent  recent  recent  achievements achievements achievements achievements"
+    "weekly  weekly  weekly  weekly  weekly  weekly  weekly  weekly  achievements achievements achievements achievements";
+}
+.area-profile { grid-area: profile; }
+.area-experience { grid-area: experience; }
+.area-stats { grid-area: stats; }
+.area-metrics { grid-area: metrics; }
+.area-daily { grid-area: daily; }
+.area-main { grid-area: main; }
+.area-notify { grid-area: notify; }
+.area-recent { grid-area: recent; }
+.area-weekly { grid-area: weekly; }
+
+/* Achievements: tall right-column progression panel that scrolls internally when full. */
+.area-achievements { grid-area: achievements; display: flex; flex-direction: column; min-height: 420px; }
+.area-achievements .card-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; justify-content: center; }
+.area-achievements .achievement-grid { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.area-achievements .state { margin: auto 0; }
 
 /* Cards */
 .card {
@@ -147,7 +172,7 @@ code { color: var(--accent); font-family: ui-monospace, 'SFMono-Regular', Menlo,
 .activity-time { font-size: 0.76rem; white-space: nowrap; }
 
 /* Achievements */
-.achievement-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.achievement-grid { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .achievement { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.02); }
 .achievement.locked { opacity: 0.62; }
 .achievement.in-progress { border-color: rgba(125, 211, 252, 0.28); }
@@ -192,15 +217,30 @@ code { color: var(--accent); font-family: ui-monospace, 'SFMono-Regular', Menlo,
 
 .footer { margin-top: 28px; text-align: center; font-size: 0.78rem; }
 
-/* Responsive */
+/* Responsive — collapse the 12-column layout to a single stacked column. */
 @media (max-width: 900px) {
-  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .span-2, .span-3 { grid-column: span 2; }
+  .grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "profile"
+      "experience"
+      "stats"
+      "metrics"
+      "daily"
+      "main"
+      "notify"
+      "achievements"
+      "recent"
+      "weekly";
+  }
+  /* Let the achievements panel size to its content when stacked. */
+  .area-achievements { min-height: 0; }
+  .area-achievements .card-body { justify-content: flex-start; }
+  .area-achievements .achievement-grid { overflow-y: visible; }
+  .area-achievements .state { margin: 0; }
   .weekly-totals { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 600px) {
-  .grid { grid-template-columns: 1fr; }
-  .span-2, .span-3 { grid-column: span 1; }
   .stat-grid { grid-template-columns: 1fr; }
   .player-stats { grid-template-columns: 1fr; }
   .notification-side { flex-direction: row; align-items: center; }
