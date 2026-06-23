@@ -56,7 +56,7 @@ body {
     "daily   daily   daily   daily   main    main    main    main    metrics     metrics     metrics     metrics"
     "notify  notify  notify  notify  notify  notify  notify  notify  achievements achievements achievements achievements"
     "recent  recent  recent  recent  recent  recent  recent  recent  achievements achievements achievements achievements"
-    "weekly  weekly  weekly  weekly  weekly  weekly  weekly  weekly  achievements achievements achievements achievements";
+    "weekly  weekly  weekly  weekly  weekly  weekly  weekly  weekly  weekly       weekly       weekly       weekly";
 }
 .area-profile { grid-area: profile; }
 .area-experience { grid-area: experience; }
