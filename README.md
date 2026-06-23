@@ -2,6 +2,8 @@
 
 Local-first Discord activity tracker for one trusted server. It tracks only explicitly configured channels, stores privacy-safe events in local SQLite, computes deterministic XP/rank stats, and shows them in a local React dashboard.
 
+> **Setting it up with a real Discord bot?** See **[INSTRUCTIONS.md](INSTRUCTIONS.md)** for the full step-by-step (create the bot, get IDs, configure channels, connect, and daily usage).
+
 ## Stack
 
 - Node.js 22 + TypeScript
