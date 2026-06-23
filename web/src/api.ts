@@ -27,6 +27,19 @@ export interface AsyncState<T> {
   error: string | null;
 }
 
+/** POST JSON and return the parsed response (used by the interactive Daily Quest panel). */
+export async function postJson<T>(path: string, body: unknown = {}): Promise<T> {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok && res.status >= 500) {
+    throw new ApiError(`Request to ${path} failed (${res.status})`, res.status);
+  }
+  return (await res.json()) as T;
+}
+
 /**
  * Fetch `path` once on mount and whenever a dependency in `deps` changes.
  * Aborts the in-flight request on unmount so unmounted sections never set state.

@@ -11,9 +11,22 @@ import { applyMigrations, openDatabase, type Db } from './db.js';
 import { addQuest, completeQuest, getQuest, listQuests, QUEST_TYPES, type QuestStatus } from './quests.js';
 import { listAchievements, weeklyReport } from './reports.js';
 import { getRankSnapshot } from './xp.js';
-import { applyStatGains, getPlayerStats, questStatGains } from './stats.js';
+import { applyStatGains, getPlayerStats, questStatGains, PLAYER_STAT_KEYS } from './stats.js';
 import { listNotifications, type Notifier } from './notifications.js';
 import { achievementNotification, checkAchievementsAfterLevelUp, checkAchievementsAfterQuestCompleted } from './achievements.js';
+import {
+  allocateStatPoint,
+  claimLootBox,
+  clearDailyPenalty,
+  DAILY_METRICS,
+  DAILY_TIERS,
+  getDailySnapshot,
+  logDailyMetric,
+  runDailyEvaluation,
+  setDailyTier,
+  type DailyMetricKey,
+  type DailyTier,
+} from './dailyQuests.js';
 
 export type DiscordStatus = 'connected' | 'disconnected' | 'skipped';
 
@@ -36,6 +49,15 @@ const penaltyBody = z.object({
   severity: z.string().min(1).default('warning'),
 });
 const summaryBody = z.object({ userId: z.string().min(1).optional() }).optional();
+const tierBody = z.object({ userId: z.string().min(1).optional(), tier: z.enum(DAILY_TIERS as unknown as [string, ...string[]]) });
+const metricBody = z.object({
+  userId: z.string().min(1).optional(),
+  metricKey: z.enum(DAILY_METRICS.map((m) => m.key) as unknown as [string, ...string[]]),
+  progress: z.number().min(0).optional(),
+  delta: z.number().optional(),
+});
+const allocateBody = z.object({ userId: z.string().min(1).optional(), statKey: z.enum(PLAYER_STAT_KEYS as unknown as [string, ...string[]]) });
+const flushBody = z.object({ userId: z.string().min(1).optional(), note: z.string().optional() }).optional();
 
 function resolveWebDistRoot(): string | null {
   const candidates = [
@@ -112,6 +134,98 @@ export function createApi({
   app.get<{ Querystring: { userId?: string } }>('/api/stats/player', async (req) => {
     const userId = req.query.userId ?? DEFAULT_USER_ID;
     return getPlayerStats(db, userId);
+  });
+
+  const todayLocal = () =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: config.timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const dailyNotify = (input: Parameters<NonNullable<typeof notifier>['notify']>[0]) => notifier?.notify(input);
+
+  // --- Daily Quest engine ---
+  app.get<{ Querystring: { userId?: string } }>('/api/daily', async (req) => {
+    const userId = req.query.userId ?? DEFAULT_USER_ID;
+    return getDailySnapshot(db, userId, todayLocal());
+  });
+
+  app.post('/api/daily/tier', async (req, reply) => {
+    const parsed = tierBody.safeParse(req.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: 'invalid_tier', details: parsed.error.flatten() };
+    }
+    const userId = parsed.data.userId ?? DEFAULT_USER_ID;
+    setDailyTier(db, userId, parsed.data.tier as DailyTier);
+    broadcast('daily.updated', { userId, reason: 'tier' });
+    return getDailySnapshot(db, userId, todayLocal());
+  });
+
+  app.post('/api/daily/metric', async (req, reply) => {
+    const parsed = metricBody.safeParse(req.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: 'invalid_metric', details: parsed.error.flatten() };
+    }
+    const userId = parsed.data.userId ?? DEFAULT_USER_ID;
+    const today = todayLocal();
+    getDailySnapshot(db, userId, today); // ensure today's quest exists
+    const result = logDailyMetric(
+      db,
+      userId,
+      today,
+      parsed.data.metricKey as DailyMetricKey,
+      { progress: parsed.data.progress, delta: parsed.data.delta },
+      { notify: dailyNotify },
+    );
+    broadcast('daily.updated', { userId, reason: 'metric' });
+    if (result.completion) {
+      broadcast('xp', { userId, xpAwarded: result.completion.xpAwarded });
+      broadcast('stats.updated', { reason: 'daily.completed', userId });
+      broadcast('notification', { type: 'system', userId, title: 'Daily Quest complete' });
+    }
+    return { ...getDailySnapshot(db, userId, today), completion: result.completion };
+  });
+
+  app.post('/api/daily/evaluate', async (req) => {
+    const userId = (req.body as { userId?: string } | undefined)?.userId ?? DEFAULT_USER_ID;
+    const result = runDailyEvaluation(db, userId, todayLocal(), { notify: dailyNotify });
+    broadcast('daily.updated', { userId, reason: 'evaluate' });
+    if (result.penaltyTriggered) broadcast('notification', { type: 'penalty', userId, title: 'PENALTY ZONE ACTIVE' });
+    return { ...getDailySnapshot(db, userId, todayLocal()), evaluation: result };
+  });
+
+  app.post('/api/daily/flush', async (req, reply) => {
+    const parsed = flushBody.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: 'invalid_flush', details: parsed.error.flatten() };
+    }
+    const userId = parsed.data?.userId ?? DEFAULT_USER_ID;
+    const state = clearDailyPenalty(db, userId, parsed.data?.note, { notify: dailyNotify });
+    broadcast('daily.updated', { userId, reason: 'flush' });
+    return { ...getDailySnapshot(db, userId, todayLocal()), state };
+  });
+
+  app.post('/api/stats/allocate', async (req, reply) => {
+    const parsed = allocateBody.safeParse(req.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: 'invalid_allocation', details: parsed.error.flatten() };
+    }
+    const userId = parsed.data.userId ?? DEFAULT_USER_ID;
+    const result = allocateStatPoint(db, userId, parsed.data.statKey as (typeof PLAYER_STAT_KEYS)[number]);
+    if (!result.ok) {
+      reply.code(409);
+      return { error: 'no_stat_points', ...result };
+    }
+    broadcast('stats.player.updated', { userId });
+    broadcast('daily.updated', { userId, reason: 'allocate' });
+    return result;
+  });
+
+  app.post<{ Params: { id: string } }>('/api/loot/:id/claim', async (req) => {
+    const userId = (req.body as { userId?: string } | undefined)?.userId ?? DEFAULT_USER_ID;
+    const box = claimLootBox(db, userId, req.params.id);
+    broadcast('daily.updated', { userId, reason: 'loot' });
+    return { box };
   });
 
   app.get<{ Querystring: { userId?: string; limit?: string } }>('/api/notifications', async (req) => {

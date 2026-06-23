@@ -250,6 +250,45 @@ Tips for using it as real training:
 - Only mark a quest complete when you truly did it. The XP is meaningless if you cheat the
   System — the point is to become stronger in real life, and the numbers just mirror that.
 
+## The Daily Quest (your core loop)
+
+The **Daily Quest** is a fixed daily checklist shown at the top of the dashboard — the
+heartbeat of the system. Pick a **tier** (E / C / S) that matches your level, then clear
+every objective each day:
+
+| Metric | E-Rank | C-Rank | S-Rank |
+|--------|--------|--------|--------|
+| Push-ups | 30 | 60 | 100 |
+| Sit-ups | 30 | 60 | 100 |
+| Squats | 30 | 60 | 100 |
+| Pull-ups | 10 | 30 | 60 |
+| Running / Cardio | 1 km | 2.5 km | 5 km |
+| Mental Focus | read 5p / study 15m | read 15p / study 45m | study 2h+ |
+
+Log progress on each metric (`+1`, `+5`, or **Done**). When **all six** are met, the day
+clears and the System rewards you:
+
+- **+100 XP** to your global level/rank.
+- **+3 unallocated stat points** — spend them on any Hunter attribute from the panel.
+- A **loot box**: a daily *Common* box (30 min guilt-free leisure), a *Rare* box every
+  **7-day streak** (a real treat), and a *Legendary* box every **30-day streak** (a big
+  reward milestone). You choose and honor the real-world reward.
+
+**Streak & penalty:** completing the day advances your streak. At local **midnight** the
+System evaluates the day — if you didn't clear it, your **streak resets to 0** and the
+dashboard enters **[PENALTY ZONE ACTIVE]** (a red banner; a red alert is posted to
+`#system-output`). The penalty lifts only when you log a **recovery flush** (e.g. a 5 km
+walk) with the *Log recovery flush* button. The evaluator also runs on startup, so days the
+app was offline are still reconciled.
+
+> The OS-level "lock entertainment apps" idea from the spec is intentionally **not**
+> enforced (a local web app shouldn't seize your machine) — the penalty is the streak
+> reset, the visible PENALTY ZONE state, and the recovery-flush requirement.
+
+Daily-quest API (used by the dashboard, also scriptable): `GET /api/daily`,
+`POST /api/daily/tier`, `POST /api/daily/metric`, `POST /api/daily/evaluate`,
+`POST /api/daily/flush`, `POST /api/stats/allocate`, `POST /api/loot/:id/claim`.
+
 ## How stats grow
 
 | Action | Effect |
@@ -338,6 +377,8 @@ curl http://127.0.0.1:3333/api/health
 ```
 
 API endpoints: `/api/health`, `/api/config/boundaries`, `/api/stats/summary`,
-`/api/stats/player`, `/api/quests`, `/api/quests/:id/complete`, `/api/achievements`,
-`/api/timeline`, `/api/notifications`, `/api/penalties`, `/api/summaries/today`,
-`/api/summaries/week`, `/api/reports/weekly`, `/api/events/stream`.
+`/api/stats/player`, `/api/stats/allocate`, `/api/daily`, `/api/daily/tier`,
+`/api/daily/metric`, `/api/daily/evaluate`, `/api/daily/flush`, `/api/loot/:id/claim`,
+`/api/quests`, `/api/quests/:id/complete`, `/api/achievements`, `/api/timeline`,
+`/api/notifications`, `/api/penalties`, `/api/summaries/today`, `/api/summaries/week`,
+`/api/reports/weekly`, `/api/events/stream`.

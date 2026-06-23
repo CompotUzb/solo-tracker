@@ -4,6 +4,7 @@ import { subscribeToDashboardEvents } from './live.js';
 import {
   Achievements,
   ActivityMetrics,
+  DailyProtocol,
   DailyQuests,
   MainQuests,
   Notifications,
@@ -16,6 +17,7 @@ import {
 import type {
   AchievementsResponse,
   Boundaries,
+  DailySnapshot,
   Health,
   NotificationsResponse,
   PlayerStatsResponse,
@@ -38,6 +40,7 @@ export function App() {
   const boundaries = useEndpoint<Boundaries>('/api/config/boundaries', []);
   const summary = useEndpoint<Summary>('/api/stats/summary', [refreshKey]);
   const player = useEndpoint<PlayerStatsResponse>('/api/stats/player', [refreshKey]);
+  const daily = useEndpoint<DailySnapshot>('/api/daily', [refreshKey]);
   const quests = useEndpoint<QuestsResponse>('/api/quests', [refreshKey]);
   const timeline = useEndpoint<TimelineResponse>('/api/timeline?limit=20', [refreshKey]);
   const achievements = useEndpoint<AchievementsResponse>('/api/achievements', [refreshKey]);
@@ -63,6 +66,8 @@ export function App() {
           {live ? 'Live' : 'Offline'}
         </span>
       </header>
+
+      <DailyProtocol daily={daily} player={player} onChange={() => setRefreshKey((key) => key + 1)} />
 
       <div className="grid">
         <Profile summary={summary} health={health} boundaries={boundaries} />

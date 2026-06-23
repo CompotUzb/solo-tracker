@@ -53,6 +53,55 @@ export interface NotificationsResponse {
   notifications: Notification[];
 }
 
+export interface DailyMetric {
+  key: string;
+  label: string;
+  unit: string;
+  target: number;
+  progress: number;
+  done: boolean;
+}
+
+export interface DailyQuest {
+  date: string;
+  tier: 'e' | 'c' | 's';
+  tierLabel: string;
+  status: string;
+  completedAt: string | null;
+  metrics: DailyMetric[];
+  complete: boolean;
+  completedCount: number;
+  totalCount: number;
+}
+
+export interface DailyStateView {
+  currentStreak: number;
+  longestStreak: number;
+  statPoints: number;
+  penaltyActive: boolean;
+  penaltyReason: string | null;
+  penaltySince: string | null;
+  lastEvaluatedDate: string | null;
+}
+
+export interface LootBox {
+  id: string;
+  rarity: string;
+  reward: string;
+  source: string;
+  status: string;
+  createdAt: string;
+  claimedAt: string | null;
+}
+
+export interface DailySnapshot {
+  date: string;
+  quest: DailyQuest | null;
+  state: DailyStateView;
+  lootBoxes: LootBox[];
+  statKeys: string[];
+}
+
 export interface Rank {
   totalXp: number;
   level: number;

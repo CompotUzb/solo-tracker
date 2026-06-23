@@ -10,6 +10,7 @@ const REFRESH_EVENTS = [
   'quest.updated',
   'stats.updated',
   'stats.player.updated',
+  'daily.updated',
   'notification',
   'discord.message',
 ] as const;

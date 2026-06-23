@@ -6,12 +6,25 @@ import { createNotifier } from './notifications.js';
 import { weeklyReport } from './reports.js';
 import { getRankSnapshot } from './xp.js';
 import { awardMessageStats } from './stats.js';
+import { runDailyEvaluation } from './dailyQuests.js';
 
 /** Local calendar date (YYYY-MM-DD) for an ISO instant in the configured timezone. */
 function localDateFor(iso: string, timezone: string): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(
     new Date(iso),
   );
+}
+
+/** Milliseconds from now until the next 00:00 in the configured timezone (+1s buffer). */
+function msUntilNextLocalMidnight(timezone: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: timezone, hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(
+    new Date(),
+  );
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  const hour = get('hour') % 24;
+  const elapsed = hour * 3600 + get('minute') * 60 + get('second');
+  const remaining = 86400 - elapsed;
+  return (remaining <= 0 ? 86400 : remaining) * 1000 + 1000;
 }
 
 async function main() {
@@ -71,6 +84,27 @@ async function main() {
       metadata: { rangeStart: report.rangeStart, rangeEnd: report.rangeEnd, source: 'discord_command' },
     });
   };
+
+  // Daily Quest evaluator: finalize missed days, break streaks, and raise penalties. Runs
+  // once on startup (catch-up for any days the app was offline) and at each local midnight.
+  const runDailyEval = () => {
+    try {
+      const today = localDateFor(new Date().toISOString(), config.timezone);
+      const result = runDailyEvaluation(db, SEED_USER_ID, today, { notify: (input) => notifier.notify(input) });
+      api.broadcast('daily.updated', { userId: SEED_USER_ID, reason: 'scheduled' });
+      if (result.penaltyTriggered) api.broadcast('notification', { type: 'penalty', userId: SEED_USER_ID, title: 'PENALTY ZONE ACTIVE' });
+    } catch (error) {
+      console.error('daily evaluation failed:', error instanceof Error ? error.message : error);
+    }
+  };
+  runDailyEval();
+  const scheduleMidnight = () => {
+    setTimeout(() => {
+      runDailyEval();
+      scheduleMidnight();
+    }, msUntilNextLocalMidnight(config.timezone)).unref();
+  };
+  scheduleMidnight();
 
   if (!config.skipDiscordLogin) {
     const client = createDiscordClient(config, boundary, {
