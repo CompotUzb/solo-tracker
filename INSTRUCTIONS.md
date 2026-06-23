@@ -242,9 +242,22 @@ Guardrails so stats grow **slower than XP**:
 15, Lv 4 at 30 (each next level costs `5 × current level` more). The bar under each stat
 shows progress to its next level.
 
-**Global XP/rank** is separate and comes mostly from quests. Your level maps to a Hunter
-rank: **E** (1–17) → **D** (18–25) → **C** (26–39) → **B** (40–50) → **A** (51–75) →
-**S** (76–95) → **National-Level** (96–119) → **Monarch** (120+).
+**Global XP/rank** is separate and comes only from **quests**. Each level maps to a Hunter
+rank, and total XP to *reach* level L is `50 × (L−1) × L` (the jump to the next level is
+`100 × current level`).
+
+| Rank | Starts at level | Total XP needed | ≈ Raids (400 XP) | ≈ Bosses (150 XP) |
+|------|-----------------|-----------------|------------------|-------------------|
+| E-Rank | 1 | 0 | — | — |
+| D-Rank | 18 | 15,300 | 38 | 102 |
+| C-Rank | 26 | 32,500 | 81 | 217 |
+| B-Rank | 40 | 78,000 | 195 | 520 |
+| A-Rank | 51 | 127,500 | 319 | 850 |
+| S-Rank | 76 | 285,000 | 712 | 1,900 |
+| National-Level | 96 | 456,000 | 1,140 | 3,040 |
+| Monarch | 120 | 714,000 | 1,785 | 4,760 |
+
+Quest XP per difficulty: easy 10 · normal 25 · hard 60 · boss 150 · raid 400.
 
 ---
 
