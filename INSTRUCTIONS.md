@@ -225,6 +225,31 @@ Every notification is saved locally and listed on the **System Notifications** c
 
 ---
 
+## What the quest tiers mean (real world)
+
+This is a **training system, not a game** — the tiers are just motivating names for
+real-life tasks. You set a quest's tier by honest **effort + impact**, then you actually do
+it in the real world and mark it complete. There are no monsters; the "boss" is the hard
+thing you've been avoiding, and the "raid" is a goal big enough to need a whole campaign.
+
+| Tier | XP | What it really is | Time / effort | Real examples |
+|------|----|-------------------|---------------|---------------|
+| **Easy** | 10 | A micro-habit / minimum rep | 5–15 min | 10 pushups · read 5 pages · 15-min study · make your bed |
+| **Normal** | 25 | A solid daily task you committed to | 30–60 min | full workout · 1h focused study · finish a work ticket · cook a healthy meal |
+| **Hard** | 60 | A demanding session, or something you keep avoiding | half a day of real effort | finish a project module · 2–3h deep practice · long run · a hard conversation |
+| **Boss** | 150 | A **milestone or fear you finally face** | sustained over days | ship a feature · pass an exam · gym PR · give a presentation · finish a course chapter |
+| **Raid** | 400 | A **campaign / transformation goal** | weeks to months | land a job or client · earn a certification · run a 10k · launch a product · a 30-day challenge |
+
+Tips for using it as real training:
+
+- Match the tier to the same life area as your stats: a **#body-training** raid might be
+  "run a 10k", a **#work-skill** boss might be "ship the project", a **#mind-training**
+  normal might be "1 hour of deep study".
+- Keep 1–3 small (easy/normal) quests as your **daily loop**, and 1 boss/raid as the
+  **arc** you're working toward — that's why the dashboard splits Daily Quests vs Main Quests.
+- Only mark a quest complete when you truly did it. The XP is meaningless if you cheat the
+  System — the point is to become stronger in real life, and the numbers just mirror that.
+
 ## How stats grow
 
 | Action | Effect |
