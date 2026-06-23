@@ -3,6 +3,15 @@ import type { AppConfig } from './config.js';
 import { isMessageInTrackedBoundary, type BoundaryConfig, type MessageLike } from './boundary.js';
 import { persistRawMessage, type RawDiscordMessageInput } from './db.js';
 
+export type SummaryCommandKind = 'today' | 'week';
+
+export function parseSummaryCommand(content: string | null | undefined): SummaryCommandKind | null {
+  const normalized = (content ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+  if (normalized === '/summary today' || normalized === '!summary today') return 'today';
+  if (normalized === '/summary week' || normalized === '!summary week' || normalized === '/report weekly' || normalized === '!report weekly') return 'week';
+  return null;
+}
+
 // Normalize a discord.js Message into the minimal shape the boundary filter understands.
 // DMs have a null guildId and a channel without `parentId`, so they fall through to the boundary's guild check.
 export function toMessageLike(message: Message): MessageLike {
@@ -64,6 +73,7 @@ export function createChannelMessageSender(client: Client, channelId: string) {
 export interface DiscordClientOptions {
   storeRawMessage?: (input: RawDiscordMessageInput) => unknown;
   onRawMessageStored?: (input: RawDiscordMessageInput, stored: unknown) => void;
+  onSummaryCommand?: (kind: SummaryCommandKind, message: Message) => unknown;
 }
 
 export function createDiscordClient(config: AppConfig, boundary: BoundaryConfig, options: DiscordClientOptions = {}) {
@@ -76,6 +86,11 @@ export function createDiscordClient(config: AppConfig, boundary: BoundaryConfig,
     console.log(`Discord connected as ${ready.user.tag}; tracking guild ${boundary.trackedGuildId}; ${boundary.trackedChannelIds.length} channel(s)`);
   });
   client.on(Events.MessageCreate, (message) => {
+    const summaryCommand = config.commandsChannelId === message.channelId ? parseSummaryCommand(message.content) : null;
+    if (summaryCommand) {
+      options.onSummaryCommand?.(summaryCommand, message);
+      return;
+    }
     if (!isMessageInTrackedBoundary(toMessageLike(message), boundary)) return;
     const input = toRawMessageInput(message, config);
     const stored = store(input);

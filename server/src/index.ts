@@ -3,6 +3,8 @@ import { migrate, loadTrackedBoundary, openDatabase, storeRawMessage, SEED_USER_
 import { createApi, type DiscordStatus } from './api.js';
 import { createDiscordClient, createChannelMessageSender } from './bot.js';
 import { createNotifier } from './notifications.js';
+import { weeklyReport } from './reports.js';
+import { getRankSnapshot } from './xp.js';
 import { awardMessageStats } from './stats.js';
 
 /** Local calendar date (YYYY-MM-DD) for an ISO instant in the configured timezone. */
@@ -39,6 +41,37 @@ async function main() {
   const api = createApi({ config, db, notifier, discordStatus: () => discordStatus });
   broadcast = api.broadcast;
 
+  const publishSummary = (kind: 'today' | 'week') => {
+    if (kind === 'today') {
+      const today = localDateFor(new Date().toISOString(), config.timezone);
+      const stats = db
+        .prepare('select messages_count,xp_earned,streak_eligible from daily_stats where user_id=? and local_date=?')
+        .get(SEED_USER_ID, today) as { messages_count: number; xp_earned: number; streak_eligible: number } | undefined;
+      const completed = db
+        .prepare(`select count(*) as n from quests where user_id=? and status='completed' and completed_at>=? and completed_at<?`)
+        .get(SEED_USER_ID, `${today}T00:00:00.000Z`, `${today}T23:59:59.999Z`) as { n: number };
+      const body =
+        completed.n === 0
+          ? `No completed quests today.\n\nStreak: ${stats?.streak_eligible ? 'active' : 'reset or unchanged'}.\nFocus for tomorrow: complete one small quest before noon.`
+          : `✅ Completed: ${completed.n}\nXP today: ${stats?.xp_earned ?? 0}\nMessages: ${stats?.messages_count ?? 0}`;
+      notifier.notify({ userId: SEED_USER_ID, type: 'daily_summary', title: `Daily Summary — ${today}`, body, metadata: { date: today, source: 'discord_command' } });
+      return;
+    }
+
+    const report = weeklyReport(db, SEED_USER_ID, config.timezone);
+    const body =
+      report.totals.questsCompleted === 0
+        ? `No quests completed this week.\n\nRecommended focus: Start with one 10-minute quest in coding or study.`
+        : `Level: ${getRankSnapshot(db, SEED_USER_ID).level} | XP this week: ${report.totals.xp} | Active days: ${report.totals.activeDays}/7\n\n✅ Completed: ${report.totals.questsCompleted}\nRecommended focus: Keep the streak alive: complete one quest before noon tomorrow.`;
+    notifier.notify({
+      userId: SEED_USER_ID,
+      type: 'weekly_summary',
+      title: `Weekly Report — ${report.rangeStart} to ${report.rangeEnd}`,
+      body,
+      metadata: { rangeStart: report.rangeStart, rangeEnd: report.rangeEnd, source: 'discord_command' },
+    });
+  };
+
   if (!config.skipDiscordLogin) {
     const client = createDiscordClient(config, boundary, {
       storeRawMessage: (input) => storeRawMessage(db, input),
@@ -69,6 +102,10 @@ async function main() {
           }
         }
         api.broadcast('stats.updated', { reason: 'discord.message', channelId: input.channelId });
+      },
+      onSummaryCommand(kind) {
+        publishSummary(kind);
+        api.broadcast('notification', { type: kind === 'today' ? 'daily_summary' : 'weekly_summary', userId: SEED_USER_ID });
       },
     });
     client.on('clientReady', () => {

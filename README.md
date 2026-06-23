@@ -102,4 +102,6 @@ migrations/  SQL schema files applied by server migration runner
 data/        local SQLite files (gitignored)
 ```
 
-API endpoints: `/api/health`, `/api/config/boundaries`, `/api/stats/summary`, `/api/timeline`, `/api/events/stream`.
+API endpoints: `/api/health`, `/api/config/boundaries`, `/api/stats/summary`, `/api/timeline`, `/api/notifications`, `/api/penalties`, `/api/summaries/today`, `/api/summaries/week`, `/api/events/stream`.
+
+System output notifications are always stored locally in SQLite and are delivered to Discord only when `SYSTEM_OUTPUT_CHANNEL_ID` is configured and Discord login is enabled. Quest completion can emit level-up and achievement notifications; `/api/penalties` emits penalty warnings; `/api/summaries/today` and `/api/summaries/week` publish on-demand summary notifications. In Discord, `!summary today`, `/summary today`, `!summary week`, `/summary week`, and `/report weekly` are accepted only in `COMMANDS_CHANNEL_ID` and publish through the configured system output route.

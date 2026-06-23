@@ -13,6 +13,7 @@ import { listAchievements, weeklyReport } from './reports.js';
 import { getRankSnapshot } from './xp.js';
 import { applyStatGains, getPlayerStats, questStatGains } from './stats.js';
 import { listNotifications, type Notifier } from './notifications.js';
+import { achievementNotification, checkAchievementsAfterLevelUp, checkAchievementsAfterQuestCompleted } from './achievements.js';
 
 export type DiscordStatus = 'connected' | 'disconnected' | 'skipped';
 
@@ -29,6 +30,12 @@ const addQuestBody = z.object({
 });
 
 const completeQuestBody = z.object({ userId: z.string().min(1).optional() });
+const penaltyBody = z.object({
+  userId: z.string().min(1).optional(),
+  reason: z.string().min(1),
+  severity: z.string().min(1).default('warning'),
+});
+const summaryBody = z.object({ userId: z.string().min(1).optional() }).optional();
 
 function resolveWebDistRoot(): string | null {
   const candidates = [
@@ -111,6 +118,26 @@ export function createApi({
     const userId = req.query.userId ?? DEFAULT_USER_ID;
     const limit = Number(req.query.limit ?? 50);
     return { userId, notifications: listNotifications(db, userId, Number.isFinite(limit) ? limit : 50) };
+  });
+
+  app.post('/api/penalties', async (req, reply) => {
+    const parsed = penaltyBody.safeParse(req.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: 'invalid_penalty', details: parsed.error.flatten() };
+    }
+    const userId = parsed.data.userId ?? DEFAULT_USER_ID;
+    const penalty = { userId, reason: parsed.data.reason, severity: parsed.data.severity };
+    const notification = notifier?.notify({
+      userId,
+      type: 'penalty',
+      title: 'Penalty warning',
+      body: parsed.data.reason,
+      metadata: { severity: parsed.data.severity },
+    });
+    broadcast('notification', { type: 'penalty', userId, title: 'Penalty warning' });
+    reply.code(201);
+    return { penalty, notification };
   });
 
   app.get<{ Querystring: { userId?: string; limit?: string } }>('/api/timeline', async (req) => {
@@ -206,6 +233,12 @@ export function createApi({
           metadata: { level: result.award.current.level, rankCode: result.award.current.rankCode, questId: result.quest.id },
         });
       }
+      for (const unlock of checkAchievementsAfterLevelUp(db, result.award)) {
+        notifier?.notify(achievementNotification(unlock));
+      }
+      for (const unlock of checkAchievementsAfterQuestCompleted(db, result.quest, result.award.xpAwarded)) {
+        notifier?.notify(achievementNotification(unlock));
+      }
       if (result.award.rankChanged) {
         notifier?.notify({
           userId,
@@ -250,6 +283,57 @@ export function createApi({
   app.get<{ Querystring: { userId?: string } }>('/api/reports/weekly', async (req) => {
     const userId = req.query.userId ?? DEFAULT_USER_ID;
     return weeklyReport(db, userId, config.timezone);
+  });
+
+  app.post('/api/summaries/today', async (req, reply) => {
+    const parsed = summaryBody.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: 'invalid_summary', details: parsed.error.flatten() };
+    }
+    const userId = parsed.data?.userId ?? DEFAULT_USER_ID;
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: config.timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+    const stats = db
+      .prepare('select messages_count,xp_earned,streak_eligible from daily_stats where user_id=? and local_date=?')
+      .get(userId, today) as { messages_count: number; xp_earned: number; streak_eligible: number } | undefined;
+    const completed = db
+      .prepare(`select count(*) as n from quests where user_id=? and status='completed' and completed_at>=? and completed_at<?`)
+      .get(userId, `${today}T00:00:00.000Z`, `${today}T23:59:59.999Z`) as { n: number };
+    const body =
+      completed.n === 0
+        ? `No completed quests today.\n\nStreak: ${stats?.streak_eligible ? 'active' : 'reset or unchanged'}.\nFocus for tomorrow: complete one small quest before noon.`
+        : `✅ Completed: ${completed.n}\nXP today: ${stats?.xp_earned ?? 0}\nMessages: ${stats?.messages_count ?? 0}`;
+    const notification = notifier?.notify({ userId, type: 'daily_summary', title: `Daily Summary — ${today}`, body, metadata: { date: today } });
+    reply.code(201);
+    return { userId, date: today, notification };
+  });
+
+  app.post('/api/summaries/week', async (req, reply) => {
+    const parsed = summaryBody.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: 'invalid_summary', details: parsed.error.flatten() };
+    }
+    const userId = parsed.data?.userId ?? DEFAULT_USER_ID;
+    const report = weeklyReport(db, userId, config.timezone);
+    const body =
+      report.totals.questsCompleted === 0
+        ? `No quests completed this week.\n\nRecommended focus: Start with one 10-minute quest in coding or study.`
+        : `Level: ${getRankSnapshot(db, userId).level} | XP this week: ${report.totals.xp} | Active days: ${report.totals.activeDays}/7\n\n✅ Completed: ${report.totals.questsCompleted}\nRecommended focus: Keep the streak alive: complete one quest before noon tomorrow.`;
+    const notification = notifier?.notify({
+      userId,
+      type: 'weekly_summary',
+      title: `Weekly Report — ${report.rangeStart} to ${report.rangeEnd}`,
+      body,
+      metadata: { rangeStart: report.rangeStart, rangeEnd: report.rangeEnd },
+    });
+    reply.code(201);
+    return { userId, report, notification };
   });
 
   app.get('/api/events/stream', async (_req, reply) => {
