@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { computeStatLevel } from '@solo-system/shared';
 import type { ChannelCategory } from './config.js';
 import type { Db } from './db.js';
 import type { XpClock } from './xp.js';
@@ -106,16 +107,22 @@ export interface PlayerStat {
   key: StatKey;
   label: string;
   value: number;
+  level: number;
+  pointsIntoLevel: number;
+  pointsForNextLevel: number;
 }
 
-/** Read all eight stats for a user, defaulting missing attributes to 0. */
+/** Read all eight stats for a user, defaulting missing attributes to 0, with per-stat level. */
 export function getPlayerStats(db: Db, userId: string): { userId: string; stats: PlayerStat[]; updatedAt: string | null } {
   const rows = db
     .prepare('select stat_key,value,updated_at from player_stats where user_id=?')
     .all(userId) as { stat_key: string; value: number; updated_at: string }[];
   const byKey = new Map(rows.map((r) => [r.stat_key, r]));
   const updatedAt = rows.reduce<string | null>((acc, r) => (acc && acc > r.updated_at ? acc : r.updated_at), null);
-  const stats = PLAYER_STAT_KEYS.map((key) => ({ key, label: STAT_LABELS[key], value: byKey.get(key)?.value ?? 0 }));
+  const stats = PLAYER_STAT_KEYS.map((key) => {
+    const value = byKey.get(key)?.value ?? 0;
+    return { key, label: STAT_LABELS[key], value, ...computeStatLevel(value) };
+  });
   return { userId, stats, updatedAt };
 }
 

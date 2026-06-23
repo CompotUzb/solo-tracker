@@ -56,6 +56,35 @@ export function computeRankState(totalXp: number): RankState {
     xpForNextLevel: nextLevelStart - currentLevelStart,
   };
 }
+// Per-stat (Hunter attribute) leveling. Each attribute has its own level that climbs as
+// its point value grows. The curve is gentle so slow-growing stats still level up: the
+// cumulative points needed for level L is STEP * L*(L-1)/2, so reaching level L+1 from L
+// costs STEP*L more points (5, 10, 15, ...). Deterministic and shared so the dashboard and
+// API agree.
+export const STAT_LEVEL_STEP = 5;
+
+export interface StatLevelState {
+  level: number;
+  pointsIntoLevel: number;
+  pointsForNextLevel: number;
+}
+
+function statPointsForLevel(level: number) {
+  return (STAT_LEVEL_STEP * level * (level - 1)) / 2;
+}
+
+export function computeStatLevel(value: number): StatLevelState {
+  const safeValue = Math.max(0, Math.floor(Number.isFinite(value) ? value : 0));
+  let level = 1;
+  while (statPointsForLevel(level + 1) <= safeValue) level++;
+  const currentLevelStart = statPointsForLevel(level);
+  return {
+    level,
+    pointsIntoLevel: safeValue - currentLevelStart,
+    pointsForNextLevel: statPointsForLevel(level + 1) - currentLevelStart,
+  };
+}
+
 export interface TimelineItem {
   id: string;
   type: "message_posted";

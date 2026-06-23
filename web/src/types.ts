@@ -23,6 +23,9 @@ export interface PlayerStat {
   key: string;
   label: string;
   value: number;
+  level: number;
+  pointsIntoLevel: number;
+  pointsForNextLevel: number;
 }
 
 export interface PlayerStatsResponse {

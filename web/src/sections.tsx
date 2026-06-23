@@ -108,29 +108,34 @@ export function XpBar({ summary }: { summary: AsyncState<Summary> }) {
   );
 }
 
-// The main player-progression card. The eight RPG attributes grow slowly from tracked
-// activity and quests; bars are drawn relative to the player's current strongest stat so
-// the spread between attributes is legible even before any hard cap is reached.
+// The main player-progression card. Each of the eight RPG attributes has its own level
+// that climbs as the stat grows; the bar shows progress toward that attribute's next level.
 export function PlayerStats({ player }: { player: AsyncState<PlayerStatsResponse> }) {
   return (
     <Card title="Hunter Stats" icon="⚔" area="stats" accent>
       <Async state={player} loadingLabel="Reading attributes…">
-        {(data) => {
-          const max = Math.max(1, ...data.stats.map((s) => s.value));
-          return (
-            <ul className="player-stats">
-              {data.stats.map((stat) => (
+        {(data) => (
+          <ul className="player-stats">
+            {data.stats.map((stat) => {
+              const percent = ratioPercent(stat.pointsIntoLevel, stat.pointsForNextLevel);
+              return (
                 <li key={stat.key} className="player-stat">
                   <div className="player-stat-head">
                     <span className="player-stat-label">{stat.label}</span>
-                    <span className="player-stat-value accent">{formatNumber(stat.value)}</span>
+                    <span className="player-stat-level">
+                      <span className="player-stat-lv accent">Lv {stat.level}</span>
+                      <span className="muted">{formatNumber(stat.value)} pts</span>
+                    </span>
                   </div>
-                  <ProgressBar percent={(stat.value / max) * 100} />
+                  <ProgressBar percent={percent} />
+                  <span className="player-stat-next muted">
+                    {stat.pointsIntoLevel}/{stat.pointsForNextLevel} to Lv {stat.level + 1}
+                  </span>
                 </li>
-              ))}
-            </ul>
-          );
-        }}
+              );
+            })}
+          </ul>
+        )}
       </Async>
     </Card>
   );
