@@ -22,7 +22,7 @@ describe('weeklyReport', () => {
     db = freshDb();
     const now = new Date('2026-06-23T12:00:00.000Z');
     const today = '2026-06-23';
-    const earlier = '2026-06-20';
+    const earlier = '2026-06-22';
 
     const insertStats = db.prepare(
       `insert into daily_stats (user_id,local_date,messages_count,active_channels_count,xp_earned,streak_eligible,created_at,updated_at)
@@ -39,8 +39,17 @@ describe('weeklyReport', () => {
     const report = weeklyReport(db, USER, TZ, now);
 
     expect(report.days).toHaveLength(7);
-    expect(report.rangeStart).toBe('2026-06-17');
-    expect(report.rangeEnd).toBe(today);
+    expect(report.rangeStart).toBe('2026-06-22');
+    expect(report.rangeEnd).toBe('2026-06-28');
+    expect(report.days.map((day) => day.date)).toEqual([
+      '2026-06-22',
+      '2026-06-23',
+      '2026-06-24',
+      '2026-06-25',
+      '2026-06-26',
+      '2026-06-27',
+      '2026-06-28',
+    ]);
     expect(report.totals).toEqual({ messages: 7, xp: 55, questsCompleted: 1, activeDays: 2 });
 
     const todayEntry = report.days.find((d) => d.date === today);

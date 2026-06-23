@@ -84,14 +84,17 @@ function localDate(instant: Date, timezone: string): string {
   }).format(instant);
 }
 
-/** The seven local calendar dates ending on `now`'s local date, oldest first. */
-function lastSevenLocalDates(now: Date, timezone: string): string[] {
+/** The current local calendar week, Monday through Sunday. */
+function currentLocalWeekDates(now: Date, timezone: string): string[] {
   const today = localDate(now, timezone);
   const [year, month, day] = today.split('-').map(Number);
   const base = Date.UTC(year, month - 1, day);
+  const weekday = new Date(base).getUTCDay();
+  const daysSinceMonday = (weekday + 6) % 7;
+  const monday = base - daysSinceMonday * 86_400_000;
   const dates: string[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(base - i * 86_400_000);
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday + i * 86_400_000);
     dates.push(`${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`);
   }
   return dates;
@@ -104,13 +107,13 @@ interface DailyStatsRow {
 }
 
 /**
- * Summarize the last seven local days for a user from already-stored data:
+ * Summarize the current Monday-Sunday local week from already-stored data:
  * message counts and XP from `daily_stats`, completed quests bucketed by the
  * local date of their completion. Returns one entry per day so empty days
  * render as zeros rather than gaps.
  */
 export function weeklyReport(db: Db, userId: string, timezone: string, now: Date = new Date()): WeeklyReport {
-  const dates = lastSevenLocalDates(now, timezone);
+  const dates = currentLocalWeekDates(now, timezone);
   const rangeStart = dates[0];
   const rangeEnd = dates[dates.length - 1];
 
