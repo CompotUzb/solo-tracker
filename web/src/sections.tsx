@@ -416,7 +416,7 @@ export function DailyProtocol({ daily }: { daily: AsyncState<DailySnapshot> }) {
         const quest = data.quest;
         const statusTone = quest?.status === 'completed' ? 'easy' : quest?.status === 'failed' ? 'hard' : 'normal';
         const metric = (key: string) => quest?.metrics.find((item) => item.key === key);
-        const bodyMetrics = ['pushups', 'situps', 'squats'].map((key) => metric(key)).filter((item): item is DailyMetric => item != null);
+        const bodyMetrics = ['pushups', 'situps', 'squats', 'pullups'].map((key) => metric(key)).filter((item): item is DailyMetric => item != null);
         const cardioKm = metric('cardio_km');
         const steps = metric('steps');
         const mentalMinutes = metric('mental_minutes');

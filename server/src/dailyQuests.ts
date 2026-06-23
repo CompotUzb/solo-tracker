@@ -22,6 +22,7 @@ export const DAILY_METRICS = [
   { key: 'pushups', label: 'Push-ups', unit: 'reps' },
   { key: 'situps', label: 'Sit-ups', unit: 'reps' },
   { key: 'squats', label: 'Squats', unit: 'reps' },
+  { key: 'pullups', label: 'Pull-ups', unit: 'reps' },
   { key: 'cardio_km', label: 'Cardio', unit: 'km' },
   { key: 'steps', label: 'Steps', unit: 'steps' },
   { key: 'mental_minutes', label: 'Mental Focus', unit: 'min' },
@@ -30,9 +31,9 @@ export const DAILY_METRICS = [
 export type DailyMetricKey = (typeof DAILY_METRICS)[number]['key'];
 
 export const DAILY_TIER_TARGETS: Record<DailyTier, Partial<Record<DailyMetricKey, number>>> = {
-  e: { pushups: 30, situps: 30, squats: 30, cardio_km: 2, steps: 5000, mental_minutes: 15, mental_pages: 5 },
-  c: { pushups: 60, situps: 60, squats: 60, cardio_km: 5, steps: 10000, mental_minutes: 45, mental_pages: 15 },
-  s: { pushups: 100, situps: 100, squats: 100, cardio_km: 10, mental_minutes: 120 },
+  e: { pushups: 30, situps: 30, squats: 30, pullups: 10, cardio_km: 2, steps: 5000, mental_minutes: 15, mental_pages: 5 },
+  c: { pushups: 60, situps: 60, squats: 60, pullups: 30, cardio_km: 5, steps: 10000, mental_minutes: 45, mental_pages: 15 },
+  s: { pushups: 100, situps: 100, squats: 100, pullups: 60, cardio_km: 10, mental_minutes: 120 },
 };
 
 export const DAILY_COMPLETE_XP = 100;
@@ -217,7 +218,7 @@ export function getDailyQuest(db: Db, userId: string, localDate: string): DailyQ
     const progress = row?.progress ?? 0;
     return [{ key: m.key, label: m.label, unit: m.unit, target, progress, done: progress >= target }];
   });
-  const required = metrics.filter((m) => ['pushups', 'situps', 'squats'].includes(m.key));
+  const required = metrics.filter((m) => ['pushups', 'situps', 'squats', 'pullups'].includes(m.key));
   const cardioDone = metrics.some((m) => (m.key === 'cardio_km' || m.key === 'steps') && m.done);
   const mentalDone = metrics.some((m) => (m.key === 'mental_minutes' || m.key === 'mental_pages') && m.done);
   const completedCount = required.filter((m) => m.done).length + Number(cardioDone) + Number(mentalDone);
@@ -234,7 +235,7 @@ export function getDailyQuest(db: Db, userId: string, localDate: string): DailyQ
     metrics,
     complete,
     completedCount,
-    totalCount: 5,
+    totalCount: 6,
     discordParentMessageId: day.discord_parent_message_id,
     discordThreadId: day.discord_thread_id,
     discordThreadName: day.discord_thread_name,

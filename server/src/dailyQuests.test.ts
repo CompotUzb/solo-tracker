@@ -44,7 +44,7 @@ describe('daily quest engine', () => {
     expect(quest.tier).toBe('e');
     expect(quest.metrics.find((m) => m.key === 'pushups')?.target).toBe(30);
     expect(quest.metrics.find((m) => m.key === 'cardio_km')?.target).toBe(2);
-    expect(quest.metrics.map((m) => m.key)).not.toContain('pullups');
+    expect(quest.metrics.find((m) => m.key === 'pullups')?.target).toBe(10);
     expect(quest.complete).toBe(false);
   });
 

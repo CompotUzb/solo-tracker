@@ -26,6 +26,7 @@ const REP_PATTERNS: Array<{ metricKey: DailyMetricKey; expression: RegExp }> = [
   { metricKey: 'pushups', expression: /(\d+(?:\.\d+)?)(?:\s*[x×]\s*(\d+(?:\.\d+)?))?\s*push[\s-]*ups?\b/gi },
   { metricKey: 'situps', expression: /(\d+(?:\.\d+)?)(?:\s*[x×]\s*(\d+(?:\.\d+)?))?\s*sit[\s-]*ups?\b/gi },
   { metricKey: 'squats', expression: /(\d+(?:\.\d+)?)(?:\s*[x×]\s*(\d+(?:\.\d+)?))?\s*squats?\b/gi },
+  { metricKey: 'pullups', expression: /(\d+(?:\.\d+)?)(?:\s*[x×]\s*(\d+(?:\.\d+)?))?\s*pull[\s-]*ups?\b/gi },
 ];
 
 function add(matches: ParsedDailyMetric[], metricKey: DailyMetricKey, amount: number, rawMatch: string): void {
@@ -116,6 +117,7 @@ export function formatDailyQuestMessage(streakDayNumber: number, hunterRank: str
     `[ ] Push-ups: 0 / ${target(tier, 'pushups')}`,
     `[ ] Sit-ups: 0 / ${target(tier, 'situps')}`,
     `[ ] Squats: 0 / ${target(tier, 'squats')}`,
+    `[ ] Pull-ups: 0 / ${target(tier, 'pullups')}`,
     cardio,
     mental,
     '',

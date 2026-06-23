@@ -57,12 +57,12 @@ describe('rank-based daily tier', () => {
     expect(resolveDailyQuestTier('S-Rank', 2)).toBe('c');
   });
 
-  it('formats the exact E-Rank matrix without pull-ups', () => {
+  it('formats the exact E-Rank matrix with pull-ups', () => {
     const message = formatDailyQuestMessage(1, 'E-Rank', 'e');
     expect(message).toContain('Rank: E-Rank');
     expect(message).toContain('Tier: Beginner');
+    expect(message).toContain('Pull-ups: 0 / 10');
     expect(message).toContain('Cardio: 0 / 2 km OR 0 / 5000 steps');
-    expect(message).not.toContain('Pull-ups');
   });
 });
 
