@@ -40,6 +40,7 @@ const config = {
   trackedChannelIds: ['channel-1'],
   channelCategories: {},
   commandsChannelId: null,
+  dailyQuestsChannelId: null,
   systemOutputChannelId: null,
   apiHost: '127.0.0.1',
   apiPort: 3333,
@@ -47,6 +48,9 @@ const config = {
   contentMaxChars: 4000,
   skipDiscordLogin: true,
   timezone: 'Asia/Tashkent',
+  dailyQuestCreateTime: '06:00',
+  dailyEvaluationTime: '00:00',
+  dailyQuestTierOverride: null,
 } satisfies AppConfig;
 
 describe('raw Discord message ingestion', () => {

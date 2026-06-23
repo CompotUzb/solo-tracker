@@ -63,15 +63,23 @@ export interface DailyMetric {
 }
 
 export interface DailyQuest {
+  id: string | null;
   date: string;
   tier: 'e' | 'c' | 's';
   tierLabel: string;
+  tierName: string;
+  hunterRank: string;
   status: string;
   completedAt: string | null;
   metrics: DailyMetric[];
   complete: boolean;
   completedCount: number;
   totalCount: number;
+  discordParentMessageId: string | null;
+  discordThreadId: string | null;
+  discordThreadName: string | null;
+  streakDayNumber: number | null;
+  rewardsGranted: boolean;
 }
 
 export interface DailyStateView {

@@ -2,13 +2,24 @@ import { Client, Events, GatewayIntentBits, Partials, type Message } from 'disco
 import type { AppConfig } from './config.js';
 import { isMessageInTrackedBoundary, type BoundaryConfig, type MessageLike } from './boundary.js';
 import { persistRawMessage, type RawDiscordMessageInput } from './db.js';
+import type { DailyQuestPublisher } from './dailyWorkflow.js';
 
 export type SummaryCommandKind = 'today' | 'week';
+export type DailyCommandKind = 'show' | 'create' | 'evaluate' | 'thread';
 
 export function parseSummaryCommand(content: string | null | undefined): SummaryCommandKind | null {
   const normalized = (content ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
   if (normalized === '/summary today' || normalized === '!summary today') return 'today';
   if (normalized === '/summary week' || normalized === '!summary week' || normalized === '/report weekly' || normalized === '!report weekly') return 'week';
+  return null;
+}
+
+export function parseDailyCommand(content: string | null | undefined): DailyCommandKind | null {
+  const normalized = (content ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+  if (normalized === '/daily' || normalized === '!daily') return 'show';
+  if (normalized === '/daily create' || normalized === '!daily create') return 'create';
+  if (normalized === '/daily evaluate' || normalized === '!daily evaluate') return 'evaluate';
+  if (normalized === '/daily thread' || normalized === '!daily thread') return 'thread';
   return null;
 }
 
@@ -70,10 +81,30 @@ export function createChannelMessageSender(client: Client, channelId: string) {
   };
 }
 
+export function createDailyQuestPublisher(client: Client): DailyQuestPublisher {
+  return {
+    async publish(input) {
+      const channel = (await client.channels.fetch(input.channelId)) as {
+        send?: (content: string) => Promise<{
+          id: string;
+          startThread?: (options: { name: string; autoArchiveDuration: 1440 }) => Promise<{ id: string; name: string }>;
+        }>;
+      } | null;
+      if (!channel || typeof channel.send !== 'function') throw new Error('daily quest channel is not text-based');
+      const message = await channel.send(input.content);
+      if (typeof message.startThread !== 'function') throw new Error('daily quest message cannot create a thread');
+      const thread = await message.startThread({ name: input.threadName, autoArchiveDuration: 1440 });
+      return { parentMessageId: message.id, threadId: thread.id, threadName: thread.name };
+    },
+  };
+}
+
 export interface DiscordClientOptions {
   storeRawMessage?: (input: RawDiscordMessageInput) => unknown;
   onRawMessageStored?: (input: RawDiscordMessageInput, stored: unknown) => void;
   onSummaryCommand?: (kind: SummaryCommandKind, message: Message) => unknown;
+  onDailyCommand?: (kind: DailyCommandKind, message: Message) => unknown;
+  onDailyQuestMessage?: (message: Message) => unknown;
 }
 
 export function createDiscordClient(config: AppConfig, boundary: BoundaryConfig, options: DiscordClientOptions = {}) {
@@ -86,10 +117,19 @@ export function createDiscordClient(config: AppConfig, boundary: BoundaryConfig,
     console.log(`Discord connected as ${ready.user.tag}; tracking guild ${boundary.trackedGuildId}; ${boundary.trackedChannelIds.length} channel(s)`);
   });
   client.on(Events.MessageCreate, (message) => {
-    const summaryCommand = config.commandsChannelId === message.channelId ? parseSummaryCommand(message.content) : null;
+    const inCommandsChannel = config.commandsChannelId === message.channelId;
+    const summaryCommand = inCommandsChannel ? parseSummaryCommand(message.content) : null;
     if (summaryCommand) {
       options.onSummaryCommand?.(summaryCommand, message);
       return;
+    }
+    const dailyCommand = inCommandsChannel ? parseDailyCommand(message.content) : null;
+    if (dailyCommand) {
+      options.onDailyCommand?.(dailyCommand, message);
+      return;
+    }
+    if (!message.author?.bot && !message.author?.system && !message.webhookId && !message.system) {
+      options.onDailyQuestMessage?.(message);
     }
     if (!isMessageInTrackedBoundary(toMessageLike(message), boundary)) return;
     const input = toRawMessageInput(message, config);

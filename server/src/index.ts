@@ -1,31 +1,21 @@
 import { loadConfig } from './config.js';
 import { migrate, loadTrackedBoundary, openDatabase, storeRawMessage, SEED_USER_ID } from './db.js';
 import { createApi, type DiscordStatus } from './api.js';
-import { createDiscordClient, createChannelMessageSender } from './bot.js';
+import { createDiscordClient, createChannelMessageSender, createDailyQuestPublisher } from './bot.js';
 import { createNotifier } from './notifications.js';
 import { weeklyReport } from './reports.js';
 import { getRankSnapshot } from './xp.js';
 import { awardMessageStats } from './stats.js';
-import { runDailyEvaluation } from './dailyQuests.js';
-
-/** Local calendar date (YYYY-MM-DD) for an ISO instant in the configured timezone. */
-function localDateFor(iso: string, timezone: string): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(
-    new Date(iso),
-  );
-}
-
-/** Milliseconds from now until the next 00:00 in the configured timezone (+1s buffer). */
-function msUntilNextLocalMidnight(timezone: string): number {
-  const parts = new Intl.DateTimeFormat('en-US', { timeZone: timezone, hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(
-    new Date(),
-  );
-  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
-  const hour = get('hour') % 24;
-  const elapsed = hour * 3600 + get('minute') * 60 + get('second');
-  const remaining = 86400 - elapsed;
-  return (remaining <= 0 ? 86400 : remaining) * 1000 + 1000;
-}
+import { getDailyQuest, runDailyEvaluation } from './dailyQuests.js';
+import {
+  createDailyQuestForDate,
+  getActiveDailyQuestByThread,
+  hasReachedLocalTime,
+  localDateFor,
+  millisecondsUntilLocalTime,
+  recordDailyThreadMessage,
+  type DailyQuestPublisher,
+} from './dailyWorkflow.js';
 
 async function main() {
   const config = loadConfig();
@@ -56,7 +46,7 @@ async function main() {
 
   const publishSummary = (kind: 'today' | 'week') => {
     if (kind === 'today') {
-      const today = localDateFor(new Date().toISOString(), config.timezone);
+      const today = localDateFor(new Date(), config.timezone);
       const stats = db
         .prepare('select messages_count,xp_earned,streak_eligible from daily_stats where user_id=? and local_date=?')
         .get(SEED_USER_ID, today) as { messages_count: number; xp_earned: number; streak_eligible: number } | undefined;
@@ -85,11 +75,10 @@ async function main() {
     });
   };
 
-  // Daily Quest evaluator: finalize missed days, break streaks, and raise penalties. Runs
-  // once on startup (catch-up for any days the app was offline) and at each local midnight.
+  // Finalize overdue days on startup, then at the configured local evaluation time.
   const runDailyEval = () => {
     try {
-      const today = localDateFor(new Date().toISOString(), config.timezone);
+      const today = localDateFor(new Date(), config.timezone);
       const result = runDailyEvaluation(db, SEED_USER_ID, today, { notify: (input) => notifier.notify(input) });
       api.broadcast('daily.updated', { userId: SEED_USER_ID, reason: 'scheduled' });
       if (result.penaltyTriggered) api.broadcast('notification', { type: 'penalty', userId: SEED_USER_ID, title: 'PENALTY ZONE ACTIVE' });
@@ -98,15 +87,50 @@ async function main() {
     }
   };
   runDailyEval();
-  const scheduleMidnight = () => {
+  const scheduleEvaluation = () => {
     setTimeout(() => {
       runDailyEval();
-      scheduleMidnight();
-    }, msUntilNextLocalMidnight(config.timezone)).unref();
+      scheduleEvaluation();
+    }, millisecondsUntilLocalTime(new Date(), config.timezone, config.dailyEvaluationTime)).unref();
   };
-  scheduleMidnight();
+  scheduleEvaluation();
 
   if (!config.skipDiscordLogin) {
+    let dailyPublisher: DailyQuestPublisher | null = null;
+    const runDailyCreate = async (force = false) => {
+      if (!config.dailyQuestsChannelId || !dailyPublisher) return null;
+      const now = new Date();
+      if (!force && !hasReachedLocalTime(now, config.timezone, config.dailyQuestCreateTime)) return null;
+      const result = await createDailyQuestForDate({
+        db,
+        userId: SEED_USER_ID,
+        localDate: localDateFor(now, config.timezone),
+        hunterRank: getRankSnapshot(db, SEED_USER_ID).rankName,
+        tierOverride: config.dailyQuestTierOverride,
+        channelId: config.dailyQuestsChannelId,
+        publisher: dailyPublisher,
+      });
+      if (result.created) {
+        notifier.notify({
+          userId: SEED_USER_ID,
+          type: 'system',
+          title: 'Daily Quest generated',
+          body: `${result.quest.discordThreadName ?? 'Daily thread'} is ready.`,
+          metadata: { date: result.quest.date, threadId: result.quest.discordThreadId },
+        });
+        api.broadcast('daily.updated', { userId: SEED_USER_ID, reason: 'generated' });
+      }
+      return result;
+    };
+    const scheduleCreation = () => {
+      setTimeout(() => {
+        void runDailyCreate(true).catch((error) =>
+          console.error('daily quest creation failed:', error instanceof Error ? error.message : error),
+        );
+        scheduleCreation();
+      }, millisecondsUntilLocalTime(new Date(), config.timezone, config.dailyQuestCreateTime)).unref();
+    };
+
     const client = createDiscordClient(config, boundary, {
       storeRawMessage: (input) => storeRawMessage(db, input),
       onRawMessageStored(input, stored) {
@@ -129,7 +153,7 @@ async function main() {
               category,
               contentLength,
               content: config.storeMessageContent ? input.content : '',
-              localDate: localDateFor(input.messageTimestamp, config.timezone),
+              localDate: localDateFor(new Date(input.messageTimestamp), config.timezone),
               sourceId: input.messageId,
             });
             if (result?.changed.length) api.broadcast('stats.player.updated', { userId: SEED_USER_ID });
@@ -141,13 +165,59 @@ async function main() {
         publishSummary(kind);
         api.broadcast('notification', { type: kind === 'today' ? 'daily_summary' : 'weekly_summary', userId: SEED_USER_ID });
       },
+      async onDailyCommand(kind, message) {
+        try {
+          if (kind === 'create') await runDailyCreate(true);
+          if (kind === 'evaluate') runDailyEval();
+          const today = localDateFor(new Date(), config.timezone);
+          const quest = getActiveDailyQuestByThread(db, message.channelId) ?? getDailyQuest(db, SEED_USER_ID, today);
+          if (!quest) {
+            await message.reply('No Daily Quest generated yet. Waiting for scheduled creation.');
+            return;
+          }
+          if (kind === 'thread') {
+            await message.reply(quest.discordThreadId ? `<#${quest.discordThreadId}> (${quest.discordThreadName})` : 'Today has no Discord thread.');
+            return;
+          }
+          const progress = quest.metrics.map((metric) => `${metric.label}: ${metric.progress}/${metric.target} ${metric.unit}`).join('\n');
+          await message.reply(
+            `${quest.discordThreadName ?? `Day-${quest.streakDayNumber ?? 1}`} · Rank ${quest.hunterRank} · ${quest.tierName} · ${quest.status}\n${progress}`,
+          );
+        } catch (error) {
+          await message.reply(`Daily command failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      },
+      onDailyQuestMessage(message) {
+        const result = recordDailyThreadMessage({
+          db,
+          userId: SEED_USER_ID,
+          threadId: message.channelId,
+          messageId: message.id,
+          content: message.content ?? '',
+          storeRawMatch: config.storeMessageContent,
+          hooks: { notify: (input) => notifier.notify(input) },
+        });
+        if (result.accepted && result.parsed.length > 0) {
+          api.broadcast('daily.updated', { userId: SEED_USER_ID, reason: 'thread_message' });
+          if (result.completion) {
+            api.broadcast('xp', { userId: SEED_USER_ID, xpAwarded: result.completion.xpAwarded });
+            api.broadcast('stats.player.updated', { userId: SEED_USER_ID });
+            api.broadcast('notification', { type: 'system', userId: SEED_USER_ID, title: 'Daily Quest complete' });
+          }
+        }
+      },
     });
     client.on('clientReady', () => {
       discordStatus = 'connected';
+      dailyPublisher = createDailyQuestPublisher(client);
       if (deliveryEnabled && config.systemOutputChannelId) {
         systemSend = createChannelMessageSender(client, config.systemOutputChannelId);
       }
       api.broadcast('discord.connected', { connected: true });
+      void runDailyCreate().catch((error) =>
+        console.error('daily quest creation failed:', error instanceof Error ? error.message : error),
+      );
+      scheduleCreation();
     });
     client.on('shardDisconnect', () => {
       discordStatus = 'disconnected';

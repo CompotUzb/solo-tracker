@@ -53,7 +53,7 @@ body {
   grid-template-areas:
     "profile profile profile profile profile profile profile profile experience experience experience experience"
     "stats   stats   stats   stats   stats   stats   stats   stats   metrics     metrics     metrics     metrics"
-    "daily   daily   daily   daily   main    main    main    main    metrics     metrics     metrics     metrics"
+    "main    main    main    main    main    main    main    main    metrics     metrics     metrics     metrics"
     "notify  notify  notify  notify  notify  notify  notify  notify  achievements achievements achievements achievements"
     "recent  recent  recent  recent  recent  recent  recent  recent  achievements achievements achievements achievements"
     "weekly  weekly  weekly  weekly  weekly  weekly  weekly  weekly  weekly       weekly       weekly       weekly";
@@ -235,6 +235,8 @@ code { color: var(--accent); font-family: ui-monospace, 'SFMono-Regular', Menlo,
 .tier-btn.is-active { background: linear-gradient(90deg, var(--cyan), var(--violet)); color: #04121b; }
 
 .daily-progress-line { margin: 0 0 14px; font-size: 0.82rem; }
+.daily-workflow-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.daily-workflow-meta .muted { margin-left: auto; font-size: 0.76rem; }
 .daily-metrics { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 22px; }
 .daily-metric { display: flex; flex-direction: column; gap: 6px; }
 .daily-metric.is-done { opacity: 0.75; }
@@ -242,6 +244,10 @@ code { color: var(--accent); font-family: ui-monospace, 'SFMono-Regular', Menlo,
 .daily-metric-label { font-size: 0.85rem; font-weight: 600; }
 .daily-metric.is-done .daily-metric-label { color: var(--cyan); }
 .daily-metric-controls { display: flex; gap: 6px; }
+.daily-reward-status { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 0.82rem; }
+.daily-remaining { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 0.82rem; }
+.daily-remaining ul { margin: 8px 0 0; padding-left: 20px; color: var(--muted); }
+.daily-remaining li + li { margin-top: 4px; }
 
 .sysbtn { background: rgba(255, 255, 255, 0.04); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 5px 12px; font: inherit; font-size: 0.8rem; cursor: pointer; transition: border-color 0.2s, background 0.2s; }
 .sysbtn:hover { border-color: var(--cyan); background: rgba(56, 225, 255, 0.08); }

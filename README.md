@@ -29,7 +29,32 @@ By default `.env.example` has `SKIP_DISCORD_LOGIN=true`, so the API and dashboar
 
 ## Environment
 
-Required: `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `TRACKED_GUILD_ID`, `TRACKED_CHANNEL_IDS`, `DATABASE_PATH`. Optional: `API_HOST`, `API_PORT`, `STORE_MESSAGE_CONTENT`, `CONTENT_MAX_CHARS`, `TIMEZONE`, `SKIP_DISCORD_LOGIN`.
+Required: `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `TRACKED_GUILD_ID`, `TRACKED_CHANNEL_IDS`, `DATABASE_PATH`. Configure `DAILY_QUESTS_CHANNEL_ID` for automatic Daily Quest threads. Optional scheduling values: `DAILY_QUEST_CREATE_TIME` (default `06:00`) and `DAILY_EVALUATION_TIME` (default `00:00`).
+
+## Automatic Daily Quest
+
+At the configured local creation time, the bot reads the Hunter's current rank, selects the highest permitted Daily Quest tier, posts one checklist, and creates a `Day-N` thread. E/D receive Beginner, C/B/A receive Intermediate, and S/National-Level/Monarch receive The Sung Jin-Woo tier. Only messages in that stored active thread are parsed for progress. Creation and metric ingestion are idempotent.
+
+`DAILY_QUEST_TIER_OVERRIDE` is development/test-only and cannot select a tier above the Hunter rank. Production ignores it.
+
+Development commands in `COMMANDS_CHANNEL_ID`:
+
+```text
+/daily
+/daily create
+/daily evaluate
+/daily thread
+```
+
+With `STORE_MESSAGE_CONTENT=false`, message text is processed in memory and only extracted metric values are retained.
+
+Reset local progression/demo data while preserving configuration and schema:
+
+```bash
+pnpm reset:local-data --confirm
+```
+
+The command refuses to run without `--confirm` and is disabled when `NODE_ENV=production`.
 
 ## Commands
 

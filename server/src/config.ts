@@ -51,6 +51,8 @@ const optionalChannelId = z.preprocess((value) => {
   return trimmed;
 }, z.string().min(1).optional());
 
+const localTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+
 const envSchema = z.object({
   DISCORD_TOKEN: z.string().min(1),
   DISCORD_CLIENT_ID: z.string().min(1),
@@ -68,6 +70,10 @@ const envSchema = z.object({
   STORE_MESSAGE_CONTENT: envBoolean.default(false),
   CONTENT_MAX_CHARS: z.coerce.number().int().min(0).default(0),
   TIMEZONE: z.string().default(Intl.DateTimeFormat().resolvedOptions().timeZone),
+  DAILY_QUEST_CREATE_TIME: localTime.default('06:00'),
+  DAILY_EVALUATION_TIME: localTime.default('00:00'),
+  DAILY_QUEST_TIER_OVERRIDE: z.coerce.number().int().min(1).max(3).optional(),
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   SKIP_DISCORD_LOGIN: envBoolean.default(false),
 });
 
@@ -115,12 +121,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     trackedChannelIds: uniqueTrackedChannelIds,
     channelCategories,
     commandsChannelId: parsed.COMMANDS_CHANNEL_ID ?? null,
+    dailyQuestsChannelId: parsed.DAILY_QUESTS_CHANNEL_ID ?? null,
     systemOutputChannelId: parsed.SYSTEM_OUTPUT_CHANNEL_ID ?? null,
     apiHost: parsed.API_HOST,
     apiPort: parsed.API_PORT,
     storeMessageContent: parsed.STORE_MESSAGE_CONTENT,
     contentMaxChars: parsed.STORE_MESSAGE_CONTENT ? Math.max(parsed.CONTENT_MAX_CHARS, 1) : 0,
     timezone: parsed.TIMEZONE,
+    dailyQuestCreateTime: parsed.DAILY_QUEST_CREATE_TIME,
+    dailyEvaluationTime: parsed.DAILY_EVALUATION_TIME,
+    dailyQuestTierOverride: parsed.NODE_ENV === 'production' ? null : parsed.DAILY_QUEST_TIER_OVERRIDE ?? null,
     skipDiscordLogin: parsed.SKIP_DISCORD_LOGIN,
   };
 }
@@ -131,10 +141,13 @@ export function publicConfig(config: AppConfig) {
     trackedChannelIds: config.trackedChannelIds,
     channelCategories: config.channelCategories,
     systemOutputConfigured: config.systemOutputChannelId != null,
+    dailyQuestsConfigured: config.dailyQuestsChannelId != null,
     storeMessageContent: config.storeMessageContent,
     apiHost: config.apiHost,
     apiPort: config.apiPort,
     databasePath: config.databasePath,
     timezone: config.timezone,
+    dailyQuestCreateTime: config.dailyQuestCreateTime,
+    dailyEvaluationTime: config.dailyEvaluationTime,
   };
 }

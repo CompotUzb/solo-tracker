@@ -12,25 +12,37 @@ import type { NotificationInput } from './notifications.js';
 export const DAILY_TIERS = ['e', 'c', 's'] as const;
 export type DailyTier = (typeof DAILY_TIERS)[number];
 export const DAILY_TIER_LABELS: Record<DailyTier, string> = { e: 'E-Rank', c: 'C-Rank', s: 'S-Rank' };
+export const DAILY_TIER_NAMES: Record<DailyTier, string> = {
+  e: 'Beginner',
+  c: 'Intermediate',
+  s: 'The Sung Jin-Woo',
+};
 
 export const DAILY_METRICS = [
   { key: 'pushups', label: 'Push-ups', unit: 'reps' },
   { key: 'situps', label: 'Sit-ups', unit: 'reps' },
   { key: 'squats', label: 'Squats', unit: 'reps' },
-  { key: 'pullups', label: 'Pull-ups', unit: 'reps' },
-  { key: 'cardio', label: 'Running / Cardio', unit: 'km' },
-  { key: 'focus', label: 'Mental Focus', unit: 'min' },
+  { key: 'cardio_km', label: 'Cardio', unit: 'km' },
+  { key: 'steps', label: 'Steps', unit: 'steps' },
+  { key: 'mental_minutes', label: 'Mental Focus', unit: 'min' },
+  { key: 'mental_pages', label: 'Reading', unit: 'pages' },
 ] as const;
 export type DailyMetricKey = (typeof DAILY_METRICS)[number]['key'];
 
-const TIER_TARGETS: Record<DailyTier, Record<DailyMetricKey, number>> = {
-  e: { pushups: 30, situps: 30, squats: 30, pullups: 10, cardio: 1, focus: 15 },
-  c: { pushups: 60, situps: 60, squats: 60, pullups: 30, cardio: 2.5, focus: 45 },
-  s: { pushups: 100, situps: 100, squats: 100, pullups: 60, cardio: 5, focus: 120 },
+export const DAILY_TIER_TARGETS: Record<DailyTier, Partial<Record<DailyMetricKey, number>>> = {
+  e: { pushups: 30, situps: 30, squats: 30, cardio_km: 2, steps: 5000, mental_minutes: 15, mental_pages: 5 },
+  c: { pushups: 60, situps: 60, squats: 60, cardio_km: 5, steps: 10000, mental_minutes: 45, mental_pages: 15 },
+  s: { pushups: 100, situps: 100, squats: 100, cardio_km: 10, mental_minutes: 120 },
 };
 
 export const DAILY_COMPLETE_XP = 100;
-export const DAILY_STAT_POINTS = 3;
+export const DAILY_COMPLETION_STAT_GAINS = [
+  { statKey: 'strength', delta: 2 },
+  { statKey: 'health', delta: 2 },
+  { statKey: 'discipline', delta: 3 },
+  { statKey: 'intelligence', delta: 1 },
+  { statKey: 'survival', delta: 1 },
+] satisfies { statKey: StatKey; delta: number }[];
 
 const LOOT_REWARDS = {
   common: '30 minutes of guilt-free leisure (gaming, anime, or reading).',
@@ -88,21 +100,15 @@ function ensureStateRow(db: Db, userId: string, now: string): void {
   ).run(userId, now);
 }
 
-export function getDailyTier(db: Db, userId: string): DailyTier {
-  const row = db.prepare('select tier from daily_quest_settings where user_id=?').get(userId) as { tier: string } | undefined;
-  return row && isDailyTier(row.tier) ? row.tier : 'e';
-}
-
-export function setDailyTier(db: Db, userId: string, tier: DailyTier, clock: XpClock = {}): void {
-  const now = clock.now?.() ?? new Date().toISOString();
-  db.prepare(
-    `insert into daily_quest_settings (user_id,tier,updated_at) values (?,?,?)
-     on conflict(user_id) do update set tier=excluded.tier, updated_at=excluded.updated_at`,
-  ).run(userId, tier, now);
-}
-
 /** Create today's quest + metric rows if missing; if the tier changed, re-snapshot targets (progress kept). */
-export function ensureDailyDay(db: Db, userId: string, localDate: string, tier: DailyTier, clock: XpClock = {}): void {
+export function ensureDailyDay(
+  db: Db,
+  userId: string,
+  localDate: string,
+  tier: DailyTier,
+  clock: XpClock = {},
+  hunterRank?: string,
+): void {
   const now = clock.now?.() ?? new Date().toISOString();
   const existing = db.prepare('select tier,status from daily_quest_days where user_id=? and local_date=?').get(userId, localDate) as
     | { tier: string; status: string }
@@ -117,10 +123,27 @@ export function ensureDailyDay(db: Db, userId: string, localDate: string, tier: 
     } else if (existing.tier !== tier && existing.status === 'active') {
       db.prepare('update daily_quest_days set tier=?, updated_at=? where user_id=? and local_date=?').run(tier, now, userId, localDate);
     }
+    if (hunterRank) {
+      db.prepare('update daily_quest_days set hunter_rank=coalesce(hunter_rank,?),updated_at=? where user_id=? and local_date=?').run(
+        hunterRank,
+        now,
+        userId,
+        localDate,
+      );
+    }
     // Upsert metric target rows (only adjust targets while the day is still active).
     const status = existing?.status ?? 'active';
+    const targets = DAILY_TIER_TARGETS[tier];
+    if (status === 'active') {
+      const includedKeys = Object.keys(targets);
+      const placeholders = includedKeys.map(() => '?').join(',');
+      db.prepare(
+        `delete from daily_quest_metrics where user_id=? and local_date=? and metric_key not in (${placeholders})`,
+      ).run(userId, localDate, ...includedKeys);
+    }
     for (const metric of DAILY_METRICS) {
-      const target = TIER_TARGETS[tier][metric.key];
+      const target = targets[metric.key];
+      if (target == null) continue;
       if (status === 'active') {
         db.prepare(
           `insert into daily_quest_metrics (user_id,local_date,metric_key,target,progress,created_at,updated_at)
@@ -148,43 +171,75 @@ export interface DailyMetricView {
 }
 
 export interface DailyQuestView {
+  id: string | null;
   date: string;
   tier: DailyTier;
   tierLabel: string;
+  tierName: string;
+  hunterRank: string;
   status: string;
   completedAt: string | null;
   metrics: DailyMetricView[];
   complete: boolean;
   completedCount: number;
   totalCount: number;
+  discordParentMessageId: string | null;
+  discordThreadId: string | null;
+  discordThreadName: string | null;
+  streakDayNumber: number | null;
+  rewardsGranted: boolean;
 }
 
 export function getDailyQuest(db: Db, userId: string, localDate: string): DailyQuestView | null {
-  const day = db.prepare('select tier,status,completed_at from daily_quest_days where user_id=? and local_date=?').get(userId, localDate) as
-    | { tier: string; status: string; completed_at: string | null }
+  const day = db.prepare('select id,hunter_rank,tier,status,completed_at,discord_parent_message_id,discord_thread_id,discord_thread_name,streak_day_number,rewards_granted from daily_quest_days where user_id=? and local_date=?').get(userId, localDate) as
+    | {
+        id: string | null;
+        hunter_rank: string | null;
+        tier: string;
+        status: string;
+        completed_at: string | null;
+        discord_parent_message_id: string | null;
+        discord_thread_id: string | null;
+        discord_thread_name: string | null;
+        streak_day_number: number | null;
+        rewards_granted: number;
+      }
     | undefined;
   if (!day) return null;
   const rows = db
     .prepare('select metric_key,target,progress from daily_quest_metrics where user_id=? and local_date=?')
     .all(userId, localDate) as { metric_key: string; target: number; progress: number }[];
   const byKey = new Map(rows.map((r) => [r.metric_key, r]));
-  const metrics: DailyMetricView[] = DAILY_METRICS.map((m) => {
+  const metrics: DailyMetricView[] = DAILY_METRICS.flatMap((m) => {
     const row = byKey.get(m.key);
-    const target = row?.target ?? TIER_TARGETS[(isDailyTier(day.tier) ? day.tier : 'e')][m.key];
+    if (!row) return [];
+    const target = row.target;
     const progress = row?.progress ?? 0;
-    return { key: m.key, label: m.label, unit: m.unit, target, progress, done: progress >= target };
+    return [{ key: m.key, label: m.label, unit: m.unit, target, progress, done: progress >= target }];
   });
-  const completedCount = metrics.filter((m) => m.done).length;
+  const required = metrics.filter((m) => ['pushups', 'situps', 'squats'].includes(m.key));
+  const cardioDone = metrics.some((m) => (m.key === 'cardio_km' || m.key === 'steps') && m.done);
+  const mentalDone = metrics.some((m) => (m.key === 'mental_minutes' || m.key === 'mental_pages') && m.done);
+  const completedCount = required.filter((m) => m.done).length + Number(cardioDone) + Number(mentalDone);
+  const complete = required.every((m) => m.done) && cardioDone && mentalDone;
   return {
+    id: day.id,
     date: localDate,
     tier: isDailyTier(day.tier) ? day.tier : 'e',
     tierLabel: DAILY_TIER_LABELS[isDailyTier(day.tier) ? day.tier : 'e'],
+    tierName: DAILY_TIER_NAMES[isDailyTier(day.tier) ? day.tier : 'e'],
+    hunterRank: day.hunter_rank ?? DAILY_TIER_LABELS[isDailyTier(day.tier) ? day.tier : 'e'],
     status: day.status,
     completedAt: day.completed_at,
     metrics,
-    complete: completedCount === metrics.length,
+    complete,
     completedCount,
-    totalCount: metrics.length,
+    totalCount: 5,
+    discordParentMessageId: day.discord_parent_message_id,
+    discordThreadId: day.discord_thread_id,
+    discordThreadName: day.discord_thread_name,
+    streakDayNumber: day.streak_day_number,
+    rewardsGranted: Boolean(day.rewards_granted),
   };
 }
 
@@ -205,7 +260,7 @@ export interface CompleteDailyResult {
   xpAwarded: number;
   leveledUp: boolean;
   newStreak: number;
-  statPointsGranted: number;
+  statGains: typeof DAILY_COMPLETION_STAT_GAINS;
   lootBoxes: { rarity: string; reward: string }[];
 }
 
@@ -214,44 +269,44 @@ export interface DailyHooks {
   notify?: (input: NotificationInput) => void;
 }
 
-/** Mark today's quest complete and apply rewards: +XP, +stat points, streak++, loot box(es). */
+/** Mark today's quest complete and grant immediate rewards. Streaks advance only at evaluation. */
 function completeDailyDay(db: Db, userId: string, localDate: string, hooks: DailyHooks): CompleteDailyResult {
   const clock = hooks.clock ?? {};
   const now = clock.now?.() ?? new Date().toISOString();
   const genId = clock.genId ?? randomUUID;
   ensureStateRow(db, userId, now);
 
-  const run = db.transaction((): { newStreak: number; lootBoxes: { rarity: string; reward: string }[] } => {
-    db.prepare(`update daily_quest_days set status='completed', completed_at=?, updated_at=? where user_id=? and local_date=?`).run(
+  const run = db.transaction((): { currentStreak: number; lootBoxes: { rarity: string; reward: string }[] } => {
+    db.prepare(`update daily_quest_days set status='completed', completed_at=?, rewards_granted=1, updated_at=? where user_id=? and local_date=?`).run(
       now,
       now,
       userId,
       localDate,
     );
 
-    const state = db.prepare('select current_streak,longest_streak from daily_quest_state where user_id=?').get(userId) as
-      | { current_streak: number; longest_streak: number }
+    const state = db.prepare('select current_streak from daily_quest_state where user_id=?').get(userId) as
+      | { current_streak: number }
       | undefined;
-    const newStreak = (state?.current_streak ?? 0) + 1;
-    const longest = Math.max(state?.longest_streak ?? 0, newStreak);
-    db.prepare(
-      `update daily_quest_state set current_streak=?, longest_streak=?, stat_points=stat_points+?, updated_at=? where user_id=?`,
-    ).run(newStreak, longest, DAILY_STAT_POINTS, now, userId);
-
     const lootBoxes: { rarity: string; reward: string }[] = [{ rarity: 'common', reward: LOOT_REWARDS.common }];
     createLootBox(db, userId, 'common', 'daily', now, genId);
-    const milestone = rarityForStreak(newStreak);
-    if (milestone) {
-      createLootBox(db, userId, milestone, milestone === 'legendary' ? 'streak_30' : 'streak_7', now, genId);
-      lootBoxes.push({ rarity: milestone, reward: LOOT_REWARDS[milestone] });
-    }
-    return { newStreak, lootBoxes };
+    return { currentStreak: state?.current_streak ?? 0, lootBoxes };
   });
-  const { newStreak, lootBoxes } = run();
+  const { currentStreak, lootBoxes } = run();
 
   const award = awardXp(
     db,
     { userId, amount: DAILY_COMPLETE_XP, reason: 'daily_quest_completed', source: 'daily_quest', sourceId: localDate },
+    clock.genId ? { now: () => now, genId: clock.genId } : { now: () => now },
+  );
+  applyStatGains(
+    db,
+    {
+      userId,
+      gains: DAILY_COMPLETION_STAT_GAINS,
+      reason: 'daily_quest_completed',
+      source: 'daily_quest',
+      sourceId: localDate,
+    },
     clock.genId ? { now: () => now, genId: clock.genId } : { now: () => now },
   );
 
@@ -259,17 +314,17 @@ function completeDailyDay(db: Db, userId: string, localDate: string, hooks: Dail
   hooks.notify?.({
     userId,
     type: 'system',
-    title: `Daily Quest complete — ${newStreak}🔥 streak`,
-    body: `+${DAILY_COMPLETE_XP} XP · +${DAILY_STAT_POINTS} stat points${lootLine}${award.leveledUp ? `\n⬆️ Reached level ${award.current.level}` : ''}`,
-    metadata: { date: localDate, streak: newStreak, source: 'daily_quest' },
+    title: 'Daily Quest complete',
+    body: `+${DAILY_COMPLETE_XP} XP · automatic stat gains${lootLine}${award.leveledUp ? `\n⬆️ Reached level ${award.current.level}` : ''}`,
+    metadata: { date: localDate, streakPendingEvaluation: true, source: 'daily_quest' },
   });
 
   return {
     quest: getDailyQuest(db, userId, localDate)!,
     xpAwarded: award.xpAwarded,
     leveledUp: award.leveledUp,
-    newStreak,
-    statPointsGranted: DAILY_STAT_POINTS,
+    newStreak: currentStreak,
+    statGains: DAILY_COMPLETION_STAT_GAINS,
     lootBoxes,
   };
 }
@@ -319,6 +374,7 @@ export function logDailyMetric(
 
 export interface EvaluationResult {
   failedDates: string[];
+  completedDates: string[];
   penaltyTriggered: boolean;
   state: DailyState;
 }
@@ -326,7 +382,8 @@ export interface EvaluationResult {
 /**
  * Finalize every past day that hasn't been evaluated yet (run on startup and at local
  * midnight): a non-completed past day fails — break streak + raise penalty — while a
- * completed day is simply marked evaluated. Then ensure today's quest exists.
+ * completed day is simply marked evaluated. Creation of today's quest is handled by
+ * the Discord scheduler, not by evaluation or dashboard reads.
  */
 export function runDailyEvaluation(db: Db, userId: string, todayLocalDate: string, hooks: DailyHooks = {}): EvaluationResult {
   const now = hooks.clock?.now?.() ?? new Date().toISOString();
@@ -337,11 +394,37 @@ export function runDailyEvaluation(db: Db, userId: string, todayLocalDate: strin
     .all(userId, todayLocalDate) as { local_date: string; status: string }[];
 
   const failedDates: string[] = [];
+  const completedDates: string[] = [];
   let penaltyTriggered = false;
 
   for (const day of pastDue) {
     if (day.status === 'completed') {
+      const state = getDailyState(db, userId);
+      const nextStreak = state.currentStreak + 1;
+      const longestStreak = Math.max(state.longestStreak, nextStreak);
+      db.prepare(
+        `update daily_quest_state set current_streak=?,longest_streak=?,updated_at=? where user_id=?`,
+      ).run(nextStreak, longestStreak, now, userId);
+      const milestone = rarityForStreak(nextStreak);
+      if (milestone) {
+        createLootBox(
+          db,
+          userId,
+          milestone,
+          milestone === 'legendary' ? 'streak_30' : 'streak_7',
+          now,
+          hooks.clock?.genId ?? randomUUID,
+        );
+      }
       db.prepare('update daily_quest_days set evaluated=1, updated_at=? where user_id=? and local_date=?').run(now, userId, day.local_date);
+      completedDates.push(day.local_date);
+      hooks.notify?.({
+        userId,
+        type: 'system',
+        title: `Daily Quest victory — ${nextStreak} day streak`,
+        body: milestone ? `${milestone} box unlocked.` : 'Streak advanced.',
+        metadata: { date: day.local_date, streak: nextStreak, milestone },
+      });
       continue;
     }
     // Missed day: fail it, break the streak, raise the penalty state.
@@ -369,9 +452,7 @@ export function runDailyEvaluation(db: Db, userId: string, todayLocalDate: strin
   }
 
   db.prepare('update daily_quest_state set last_evaluated_date=?, updated_at=? where user_id=?').run(todayLocalDate, now, userId);
-  ensureDailyDay(db, userId, todayLocalDate, getDailyTier(db, userId), hooks.clock);
-
-  return { failedDates, penaltyTriggered, state: getDailyState(db, userId) };
+  return { failedDates, completedDates, penaltyTriggered, state: getDailyState(db, userId) };
 }
 
 /** Clear the penalty after logging a real-world recovery flush. */
@@ -455,7 +536,6 @@ export function claimLootBox(db: Db, userId: string, id: string, clock: XpClock 
 /** Convenience bundle for the dashboard's daily panel. */
 export function getDailySnapshot(db: Db, userId: string, localDate: string, clock: XpClock = {}) {
   ensureStateRow(db, userId, clock.now?.() ?? new Date().toISOString());
-  ensureDailyDay(db, userId, localDate, getDailyTier(db, userId), clock);
   return {
     date: localDate,
     quest: getDailyQuest(db, userId, localDate),

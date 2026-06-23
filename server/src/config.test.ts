@@ -68,6 +68,7 @@ describe('loadConfig', () => {
     // Stat channels are tracked; the command and system-output channels are not.
     expect(config.trackedChannelIds).toEqual(['legacy-1', 'dq', 'mt', 'bt', 'ws']);
     expect(config.commandsChannelId).toBe('cmd');
+    expect(config.dailyQuestsChannelId).toBe('dq');
     expect(config.systemOutputChannelId).toBe('sys');
     expect(publicConfig(config).systemOutputConfigured).toBe(true);
   });
@@ -79,8 +80,31 @@ describe('loadConfig', () => {
       DAILY_QUESTS_CHANNEL_ID: '   ',
     });
     expect(config.systemOutputChannelId).toBeNull();
+    expect(config.dailyQuestsChannelId).toBeNull();
     expect(config.channelCategories).toEqual({});
     expect(publicConfig(config).systemOutputConfigured).toBe(false);
+  });
+
+  it('loads the Daily Quest schedule and development override', () => {
+    const config = loadConfig({
+      ...baseEnv,
+      DAILY_QUEST_CREATE_TIME: '06:30',
+      DAILY_EVALUATION_TIME: '00:15',
+      DAILY_QUEST_TIER_OVERRIDE: '2',
+      NODE_ENV: 'test',
+    });
+    expect(config.dailyQuestCreateTime).toBe('06:30');
+    expect(config.dailyEvaluationTime).toBe('00:15');
+    expect(config.dailyQuestTierOverride).toBe(2);
+  });
+
+  it('ignores the tier override in production', () => {
+    const config = loadConfig({
+      ...baseEnv,
+      DAILY_QUEST_TIER_OVERRIDE: '3',
+      NODE_ENV: 'production',
+    });
+    expect(config.dailyQuestTierOverride).toBeNull();
   });
 
   it('omits secrets from the public config surface', () => {

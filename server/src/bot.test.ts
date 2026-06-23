@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Message } from 'discord.js';
-import { parseSummaryCommand, toMessageLike, createDiscordClient } from './bot.js';
+import { parseDailyCommand, parseSummaryCommand, toMessageLike, createDiscordClient } from './bot.js';
 import { loadConfig } from './config.js';
 import { isMessageInTrackedBoundary, type BoundaryConfig } from './boundary.js';
 
@@ -88,5 +88,15 @@ describe('summary command routing', () => {
     expect(onSummaryCommand).toHaveBeenCalledOnce();
     expect(onSummaryCommand).toHaveBeenCalledWith('today', expect.anything());
     client.destroy();
+  });
+});
+
+describe('daily command parsing', () => {
+  it('parses the local Daily Quest development commands', () => {
+    expect(parseDailyCommand('/daily')).toBe('show');
+    expect(parseDailyCommand('/daily create')).toBe('create');
+    expect(parseDailyCommand('/daily evaluate')).toBe('evaluate');
+    expect(parseDailyCommand('/daily thread')).toBe('thread');
+    expect(parseDailyCommand('/daily unknown')).toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-import { postJson, type AsyncState } from './api.js';
+import type { AsyncState } from './api.js';
 import { formatDate, formatNumber, ratioPercent, relativeTime, splitQuests, weekdayLabel, xpProgressPercent } from './format.js';
 import type {
   AchievementsResponse,
@@ -383,186 +383,119 @@ export function WeeklyReportSection({ report }: { report: AsyncState<WeeklyRepor
   );
 }
 
-// ── Daily Quest engine UI ───────────────────────────────────────────────────────
-
-const TIERS: { key: 'e' | 'c' | 's'; label: string }[] = [
-  { key: 'e', label: 'E' },
-  { key: 'c', label: 'C' },
-  { key: 's', label: 'S' },
-];
-
-const LOOT_TONE: Record<string, string> = { common: 'normal', rare: 'streak', legendary: 'raid' };
-
-/** Fire a POST then ask the dashboard to refetch. Errors are surfaced to the console. */
-function useAction(onChange: () => void) {
-  return (path: string, body: unknown = {}) => {
-    void postJson(path, body)
-      .then(() => onChange())
-      .catch((err) => console.error(path, err));
-  };
-}
-
-function PenaltyBanner({ daily, onChange }: { daily: DailySnapshot; onChange: () => void }) {
-  const act = useAction(onChange);
-  if (!daily.state.penaltyActive) return null;
-  return (
-    <div className="penalty-banner" role="alert">
-      <div className="penalty-main">
-        <span className="penalty-tag">⚠ PENALTY ZONE ACTIVE</span>
-        <span className="muted">{daily.state.penaltyReason ?? 'Daily quest missed. Streak reset.'}</span>
-        <span className="muted">Locked out until you log a real-world recovery flush (e.g. a 5 km walk).</span>
-      </div>
-      <button type="button" className="sysbtn sysbtn-danger" onClick={() => act('/api/daily/flush', { note: 'Recovery flush logged' })}>
-        Log recovery flush
-      </button>
-    </div>
-  );
-}
-
-function StatPointAllocator({ daily, player, onChange }: { daily: DailySnapshot; player: AsyncState<PlayerStatsResponse>; onChange: () => void }) {
-  const act = useAction(onChange);
-  if (daily.state.statPoints <= 0) return null;
-  const labels = new Map((player.data?.stats ?? []).map((s) => [s.key, s.label]));
-  return (
-    <div className="alloc">
-      <span className="alloc-head">
-        <strong className="accent">{daily.state.statPoints}</strong> unspent stat points — allocate:
-      </span>
-      <div className="alloc-btns">
-        {daily.statKeys.map((key) => (
-          <button key={key} type="button" className="sysbtn sysbtn-mini" onClick={() => act('/api/stats/allocate', { statKey: key })}>
-            +{labels.get(key) ?? key}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function LootStrip({ daily, onChange }: { daily: DailySnapshot; onChange: () => void }) {
-  const act = useAction(onChange);
-  if (daily.lootBoxes.length === 0) return null;
-  return (
-    <div className="loot-strip">
-      {daily.lootBoxes.map((box) => (
-        <div key={box.id} className={`loot-box loot-${box.rarity} ${box.status === 'claimed' ? 'is-claimed' : ''}`}>
-          <div className="loot-head">
-            <span className="loot-icon" aria-hidden>🎁</span>
-            <Badge tone={LOOT_TONE[box.rarity] ?? 'normal'}>{box.rarity}</Badge>
-          </div>
-          <span className="loot-reward muted">{box.reward}</span>
-          {box.status === 'unopened' ? (
-            <button type="button" className="sysbtn sysbtn-mini" onClick={() => act(`/api/loot/${box.id}/claim`)}>
-              Open
-            </button>
-          ) : (
-            <span className="muted loot-claimed">claimed{box.claimedAt ? ` · ${relativeTime(box.claimedAt)}` : ''}</span>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function MetricRow({ metric, locked, onChange }: { metric: DailyMetric; locked: boolean; onChange: () => void }) {
-  const act = useAction(onChange);
-  const pct = ratioPercent(metric.progress, metric.target);
+function DailyTaskRow({
+  label,
+  detail,
+  percent,
+  done,
+}: {
+  label: string;
+  detail: string;
+  percent: number;
+  done: boolean;
+}) {
   const fmt = (n: number) => (Number.isInteger(n) ? `${n}` : n.toFixed(1));
   return (
-    <li className={`daily-metric ${metric.done ? 'is-done' : ''}`}>
+    <li className={`daily-metric ${done ? 'is-done' : ''}`}>
       <div className="daily-metric-head">
         <span className="daily-metric-label">
-          {metric.done ? '✓ ' : ''}
-          {metric.label}
+          {done ? '✓ ' : ''}
+          {label}
         </span>
-        <span className="muted">
-          {fmt(metric.progress)} / {fmt(metric.target)} {metric.unit}
-        </span>
+        <span className="muted">{detail.replace(/\d+(?:\.\d+)?/g, (value) => fmt(Number(value)))}</span>
       </div>
-      <ProgressBar percent={pct} />
-      {!locked && !metric.done ? (
-        <div className="daily-metric-controls">
-          <button type="button" className="sysbtn sysbtn-mini" onClick={() => act('/api/daily/metric', { metricKey: metric.key, delta: 1 })}>
-            +1
-          </button>
-          <button type="button" className="sysbtn sysbtn-mini" onClick={() => act('/api/daily/metric', { metricKey: metric.key, delta: 5 })}>
-            +5
-          </button>
-          <button type="button" className="sysbtn sysbtn-mini" onClick={() => act('/api/daily/metric', { metricKey: metric.key, progress: metric.target })}>
-            Done
-          </button>
-        </div>
-      ) : null}
+      <ProgressBar percent={percent} />
     </li>
   );
 }
 
-export function DailyProtocol({
-  daily,
-  player,
-  onChange,
-}: {
-  daily: AsyncState<DailySnapshot>;
-  player: AsyncState<PlayerStatsResponse>;
-  onChange: () => void;
-}) {
-  const act = useAction(onChange);
+export function DailyProtocol({ daily }: { daily: AsyncState<DailySnapshot> }) {
   return (
-    <Async state={daily} loadingLabel="Summoning the daily quest…">
+    <Async state={daily} loadingLabel="Loading today’s Daily Quest…">
       {(data) => {
         const quest = data.quest;
-        const complete = quest?.complete ?? false;
+        const statusTone = quest?.status === 'completed' ? 'easy' : quest?.status === 'failed' ? 'hard' : 'normal';
+        const metric = (key: string) => quest?.metrics.find((item) => item.key === key);
+        const bodyMetrics = ['pushups', 'situps', 'squats'].map((key) => metric(key)).filter((item): item is DailyMetric => item != null);
+        const cardioKm = metric('cardio_km');
+        const steps = metric('steps');
+        const mentalMinutes = metric('mental_minutes');
+        const mentalPages = metric('mental_pages');
+        const alternativePercent = (...items: Array<DailyMetric | undefined>) =>
+          Math.max(0, ...items.filter((item): item is DailyMetric => item != null).map((item) => ratioPercent(item.progress, item.target)));
+        const remaining = quest
+          ? [
+              ...bodyMetrics
+                .filter((item) => !item.done)
+                .map((item) => `${Math.max(0, item.target - item.progress)} ${item.label.toLowerCase()}`),
+              cardioKm && !cardioKm.done && !steps?.done
+                ? `${Math.max(0, cardioKm.target - cardioKm.progress)} km cardio${steps ? ` OR ${Math.max(0, steps.target - steps.progress)} steps` : ''}`
+                : null,
+              mentalMinutes && !mentalMinutes.done && !mentalPages?.done
+                ? `${Math.max(0, mentalMinutes.target - mentalMinutes.progress)} min study${mentalPages ? ` OR ${Math.max(0, mentalPages.target - mentalPages.progress)} pages` : ''}`
+                : null,
+            ].filter((item): item is string => item != null)
+          : [];
         return (
-          <section className={`card daily-protocol ${data.state.penaltyActive ? 'penalty' : ''} ${complete ? 'complete' : ''}`}>
-            <PenaltyBanner daily={data} onChange={onChange} />
+          <section className={`card daily-protocol ${data.state.penaltyActive ? 'penalty' : ''} ${quest?.complete ? 'complete' : ''}`}>
             <header className="card-head daily-protocol-head">
               <h2>
                 <span className="card-icon" aria-hidden>🗒</span>
-                Daily Quest
-                {quest ? <Badge tone="muted">{quest.tierLabel}</Badge> : null}
+                {quest ? `SYSTEM DAILY QUEST — ${quest.discordThreadName ?? `Day-${quest.streakDayNumber ?? 1}`}` : 'Today’s Daily Quest'}
               </h2>
               <div className="daily-pills">
                 <span className="streak-pill">🔥 {data.state.currentStreak}d streak</span>
                 <span className="muted">best {data.state.longestStreak}d</span>
-                <div className="daily-tiers" role="group" aria-label="Difficulty tier">
-                  {TIERS.map((t) => (
-                    <button
-                      key={t.key}
-                      type="button"
-                      className={`tier-btn ${quest?.tier === t.key ? 'is-active' : ''}`}
-                      onClick={() => act('/api/daily/tier', { tier: t.key })}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
               </div>
             </header>
             <div className="card-body">
               {!quest ? (
-                <EmptyState message="No daily quest yet." />
-              ) : complete ? (
-                <div className="daily-complete">
-                  <span className="daily-complete-glyph" aria-hidden>✓</span>
-                  <div>
-                    <p className="daily-complete-title accent">Daily quest cleared.</p>
-                    <p className="muted">All {quest.totalCount} objectives met. +100 XP · +3 stat points · loot earned. Rest and recover, Hunter.</p>
-                  </div>
-                </div>
+                <EmptyState message="No Daily Quest generated yet. Waiting for scheduled creation." />
               ) : (
                 <>
-                  <p className="muted daily-progress-line">
-                    {quest.completedCount}/{quest.totalCount} objectives complete — finish all to clear the day (+100 XP, +3 stat points, a loot box).
-                  </p>
+                  <div className="daily-workflow-meta">
+                    <strong>Rank: {quest.hunterRank}</strong>
+                    <span>Tier: {quest.tierName}</span>
+                    <span>Thread: {quest.discordThreadName ?? `Day-${quest.streakDayNumber ?? 1}`}</span>
+                    <Badge tone={statusTone}>{data.state.penaltyActive ? 'penalty_active' : quest.status}</Badge>
+                  </div>
                   <ul className="daily-metrics">
-                    {quest.metrics.map((metric) => (
-                      <MetricRow key={metric.key} metric={metric} locked={complete} onChange={onChange} />
+                    {bodyMetrics.map((item) => (
+                      <DailyTaskRow
+                        key={item.key}
+                        label={item.label}
+                        detail={`${item.progress} / ${item.target} ${item.unit}`}
+                        percent={ratioPercent(item.progress, item.target)}
+                        done={item.done}
+                      />
                     ))}
+                    {cardioKm ? (
+                      <DailyTaskRow
+                        label="Cardio"
+                        detail={`${cardioKm.progress} / ${cardioKm.target} km${steps ? ` OR ${steps.progress} / ${steps.target} steps` : ''}`}
+                        percent={alternativePercent(cardioKm, steps)}
+                        done={cardioKm.done || Boolean(steps?.done)}
+                      />
+                    ) : null}
+                    {mentalMinutes ? (
+                      <DailyTaskRow
+                        label="Mental Focus"
+                        detail={`${mentalMinutes.progress} / ${mentalMinutes.target} min${mentalPages ? ` OR ${mentalPages.progress} / ${mentalPages.target} pages` : ''}`}
+                        percent={alternativePercent(mentalMinutes, mentalPages)}
+                        done={mentalMinutes.done || Boolean(mentalPages?.done)}
+                      />
+                    ) : null}
                   </ul>
+                  <div className="daily-remaining">
+                    <strong>Remaining</strong>
+                    {remaining.length ? <ul>{remaining.map((item) => <li key={item}>{item}</li>)}</ul> : <span className="accent">All tasks complete.</span>}
+                  </div>
+                  <div className="daily-reward-status">
+                    <span>Reward: +100 XP · automatic stat gains · Daily Common Box</span>
+                    <Badge tone={quest.rewardsGranted ? 'easy' : 'muted'}>{quest.rewardsGranted ? 'granted' : 'pending'}</Badge>
+                  </div>
                 </>
               )}
-              <StatPointAllocator daily={data} player={player} onChange={onChange} />
-              <LootStrip daily={data} onChange={onChange} />
             </div>
           </section>
         );

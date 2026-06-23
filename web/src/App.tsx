@@ -5,7 +5,6 @@ import {
   Achievements,
   ActivityMetrics,
   DailyProtocol,
-  DailyQuests,
   MainQuests,
   Notifications,
   PlayerStats,
@@ -67,14 +66,13 @@ export function App() {
         </span>
       </header>
 
-      <DailyProtocol daily={daily} player={player} onChange={() => setRefreshKey((key) => key + 1)} />
+      <DailyProtocol daily={daily} />
 
       <div className="grid">
         <Profile summary={summary} health={health} boundaries={boundaries} />
         <XpBar summary={summary} />
         <PlayerStats player={player} />
         <ActivityMetrics summary={summary} />
-        <DailyQuests quests={quests} />
         <MainQuests quests={quests} />
         <Notifications notifications={notifications} />
         <Achievements achievements={achievements} />
