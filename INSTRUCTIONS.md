@@ -242,8 +242,9 @@ Guardrails so stats grow **slower than XP**:
 15, Lv 4 at 30 (each next level costs `5 × current level` more). The bar under each stat
 shows progress to its next level.
 
-**Global XP/rank** is separate and comes mostly from quests: Seed → Apprentice → Builder →
-Specialist → Expert → Master as your level rises.
+**Global XP/rank** is separate and comes mostly from quests. Your level maps to a Hunter
+rank: **E** (1–17) → **D** (18–25) → **C** (26–39) → **B** (40–50) → **A** (51–75) →
+**S** (76–95) → **National-Level** (96–119) → **Monarch** (120+).
 
 ---
 

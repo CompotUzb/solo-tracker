@@ -6,13 +6,17 @@ export const XP_RULES = {
   MAX_AWARDED_MESSAGES_PER_DAY: 20,
   STREAK_MIN_MESSAGES_PER_DAY: 1,
 } as const;
+// Hunter ranks (Solo Leveling style): the standard E–S tiers, plus the unofficial
+// National-Level designation and the transcendent Monarch tier, mapped by level range.
 export type RankCode =
-  | "seed"
-  | "apprentice"
-  | "builder"
-  | "specialist"
-  | "expert"
-  | "master";
+  | "e"
+  | "d"
+  | "c"
+  | "b"
+  | "a"
+  | "s"
+  | "national"
+  | "monarch";
 export interface RankState {
   totalXp: number;
   level: number;
@@ -36,12 +40,16 @@ export function rankForLevel(level: number): {
   rankCode: RankCode;
   rankName: string;
 } {
-  if (level >= 17) return { rankCode: "master", rankName: "Master" };
-  if (level >= 12) return { rankCode: "expert", rankName: "Expert" };
-  if (level >= 8) return { rankCode: "specialist", rankName: "Specialist" };
-  if (level >= 5) return { rankCode: "builder", rankName: "Builder" };
-  if (level >= 3) return { rankCode: "apprentice", rankName: "Apprentice" };
-  return { rankCode: "seed", rankName: "Seed" };
+  // Level ranges from the Hunter rank table: E(1–17) D(18–25) C(26–39) B(40–50)
+  // A(51–75) S(76–95) National(96–119) Monarch(120+).
+  if (level >= 120) return { rankCode: "monarch", rankName: "Monarch" };
+  if (level >= 96) return { rankCode: "national", rankName: "National-Level" };
+  if (level >= 76) return { rankCode: "s", rankName: "S-Rank" };
+  if (level >= 51) return { rankCode: "a", rankName: "A-Rank" };
+  if (level >= 40) return { rankCode: "b", rankName: "B-Rank" };
+  if (level >= 26) return { rankCode: "c", rankName: "C-Rank" };
+  if (level >= 18) return { rankCode: "d", rankName: "D-Rank" };
+  return { rankCode: "e", rankName: "E-Rank" };
 }
 export function computeRankState(totalXp: number): RankState {
   const safeXp = Math.max(0, Math.floor(totalXp));

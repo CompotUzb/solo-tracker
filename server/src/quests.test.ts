@@ -115,13 +115,13 @@ describe('/quest complete', () => {
     expect(db.prepare('select count(*) as n from xp_awards').get()).toEqual({ n: 1 });
   });
 
-  it('accumulates XP across quests and advances level and rank', () => {
-    // raid(400) -> total 400 -> level 3 (>=300), rank apprentice.
+  it('accumulates XP across quests and advances level', () => {
+    // raid(400) -> total 400 -> level 3 (>=300), rank E (levels 1–17).
     const raid = addQuest(db, { userId: USER, title: 'Raid', questType: 'raid' }, clock());
     const result = completeQuest(db, { questId: raid.id, userId: USER }, clock());
     expect(result.award.current.level).toBe(3);
-    expect(result.award.current.rankCode).toBe('apprentice');
-    expect(result.award.rankChanged).toBe(true);
+    expect(result.award.current.rankCode).toBe('e');
+    expect(result.award.rankChanged).toBe(false);
     expect(result.award.levelsGained).toBe(2);
 
     // + boss(150) -> total 550 -> still level 3.
