@@ -1,0 +1,8 @@
+create table if not exists users (user_id text primary key,display_name text not null,discord_user_id text null,is_player integer not null default 0,timezone text null,created_at text not null,updated_at text not null);
+create index if not exists idx_users_discord_user_id on users(discord_user_id);
+create table if not exists quests (id text primary key,user_id text not null,title text not null,description text null,quest_type text not null,status text not null default 'active',target_count integer not null default 1,progress_count integer not null default 0,xp_reward integer not null default 0,starts_at text null,due_at text null,completed_at text null,created_at text not null,updated_at text not null);
+create index if not exists idx_quests_user_status on quests(user_id,status);
+create index if not exists idx_quests_type_status on quests(quest_type,status);
+create table if not exists achievements (id text primary key,user_id text not null,code text not null,name text not null,description text null,tier text null,progress integer not null default 0,target integer not null default 1,unlocked_at text null,created_at text not null,updated_at text not null,unique(user_id,code));
+create index if not exists idx_achievements_user on achievements(user_id);
+create table if not exists daily_reviews (user_id text not null,local_date text not null,summary text null,messages_count integer not null default 0,xp_earned integer not null default 0,quests_completed integer not null default 0,mood text null,notes text null,created_at text not null,updated_at text not null,primary key(user_id,local_date));

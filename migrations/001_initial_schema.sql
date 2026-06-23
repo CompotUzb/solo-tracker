@@ -1,0 +1,13 @@
+create table if not exists app_meta (key text primary key,value text not null);
+create table if not exists tracked_channels (channel_id text primary key,guild_id text not null,parent_channel_id text null,label text null,enabled integer not null default 1,created_at text not null);
+create table if not exists discord_events (id text primary key,event_type text not null,guild_id text not null,channel_id text not null,parent_channel_id text null,message_id text not null,author_id text null,occurred_at text not null,received_at text not null,content_length integer not null default 0,content_snippet text null,attachment_count integer not null default 0,is_deleted integer not null default 0,raw_json text null,unique(event_type,message_id,occurred_at));
+create index if not exists idx_discord_events_occurred_at on discord_events(occurred_at);
+create index if not exists idx_discord_events_guild_channel_time on discord_events(guild_id,channel_id,occurred_at);
+create index if not exists idx_discord_events_message_id on discord_events(message_id);
+create table if not exists activity_events (id text primary key,source text not null,source_event_id text not null references discord_events(id),activity_type text not null,user_id text not null,channel_id text not null,occurred_at text not null,units integer not null default 1,metadata_json text null,unique(source,activity_type,source_event_id));
+create index if not exists idx_activity_events_user_time on activity_events(user_id,occurred_at);
+create index if not exists idx_activity_events_type_time on activity_events(activity_type,occurred_at);
+create table if not exists xp_ledger (id text primary key,activity_event_id text not null references activity_events(id),user_id text not null,reason text not null,xp_delta integer not null,occurred_at text not null,created_at text not null,unique(activity_event_id,reason));
+create index if not exists idx_xp_ledger_user_time on xp_ledger(user_id,occurred_at);
+create table if not exists daily_stats (user_id text not null,local_date text not null,messages_count integer not null default 0,active_channels_count integer not null default 0,xp_earned integer not null default 0,streak_eligible integer not null default 0,created_at text not null,updated_at text not null,primary key(user_id,local_date));
+create table if not exists rank_snapshots (user_id text primary key,total_xp integer not null default 0,level integer not null default 1,rank_code text not null,rank_name text not null,xp_into_level integer not null default 0,xp_for_next_level integer not null default 0,current_streak_days integer not null default 0,longest_streak_days integer not null default 0,updated_at text not null);
