@@ -48,6 +48,7 @@ body {
 .grid {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: stretch;
   gap: 18px;
   grid-template-areas:
     "profile profile profile profile profile profile profile profile experience experience experience experience"
@@ -67,11 +68,10 @@ body {
 .area-recent { grid-area: recent; }
 .area-weekly { grid-area: weekly; }
 
-/* Achievements: tall right-column progression panel that scrolls internally when full. */
-.area-achievements { grid-area: achievements; display: flex; flex-direction: column; min-height: 420px; }
-.area-achievements .card-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; justify-content: center; }
-.area-achievements .achievement-grid { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-.area-achievements .state { margin: auto 0; }
+/* Achievements: one tall right-column progression panel. Content flows from the top
+   (so an empty body reads as a single continuous card) and scrolls internally when full. */
+.area-achievements { grid-area: achievements; min-height: 520px; height: 100%; display: flex; flex-direction: column; }
+.area-achievements .card-body { flex: 1; min-height: 0; overflow-y: auto; }
 
 /* Cards */
 .card {
@@ -234,10 +234,8 @@ code { color: var(--accent); font-family: ui-monospace, 'SFMono-Regular', Menlo,
       "weekly";
   }
   /* Let the achievements panel size to its content when stacked. */
-  .area-achievements { min-height: 0; }
-  .area-achievements .card-body { justify-content: flex-start; }
-  .area-achievements .achievement-grid { overflow-y: visible; }
-  .area-achievements .state { margin: 0; }
+  .area-achievements { min-height: 0; height: auto; }
+  .area-achievements .card-body { overflow-y: visible; }
   .weekly-totals { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 600px) {
