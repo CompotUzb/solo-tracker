@@ -47,6 +47,42 @@ describe('loadConfig', () => {
     expect(config.discordToken).toBe('env-only-token');
   });
 
+  it('maps named channels to stat categories and merges them into the tracked set', () => {
+    const config = loadConfig({
+      ...baseEnv,
+      TRACKED_CHANNEL_IDS: 'legacy-1',
+      DAILY_QUESTS_CHANNEL_ID: 'dq',
+      MIND_TRAINING_CHANNEL_ID: 'mt',
+      BODY_TRAINING_CHANNEL_ID: 'bt',
+      WORK_SKILL_CHANNEL_ID: 'ws',
+      COMMANDS_CHANNEL_ID: 'cmd',
+      SYSTEM_OUTPUT_CHANNEL_ID: 'sys',
+    });
+
+    expect(config.channelCategories).toEqual({
+      dq: 'daily-quests',
+      mt: 'mind-training',
+      bt: 'body-training',
+      ws: 'work-skill',
+    });
+    // Stat channels are tracked; the command and system-output channels are not.
+    expect(config.trackedChannelIds).toEqual(['legacy-1', 'dq', 'mt', 'bt', 'ws']);
+    expect(config.commandsChannelId).toBe('cmd');
+    expect(config.systemOutputChannelId).toBe('sys');
+    expect(publicConfig(config).systemOutputConfigured).toBe(true);
+  });
+
+  it('treats unset/placeholder named channels as absent (dashboard-only mode)', () => {
+    const config = loadConfig({
+      ...baseEnv,
+      SYSTEM_OUTPUT_CHANNEL_ID: 'replace_with_system_output_channel_id',
+      DAILY_QUESTS_CHANNEL_ID: '   ',
+    });
+    expect(config.systemOutputChannelId).toBeNull();
+    expect(config.channelCategories).toEqual({});
+    expect(publicConfig(config).systemOutputConfigured).toBe(false);
+  });
+
   it('omits secrets from the public config surface', () => {
     const config = loadConfig({ ...baseEnv, DISCORD_TOKEN: 'super-secret-token' });
     const safe = publicConfig(config);

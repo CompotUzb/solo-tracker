@@ -10,11 +10,44 @@ export interface Health {
 export interface Boundaries {
   guildId: string;
   trackedChannelIds: string[];
+  channelCategories: Record<string, string>;
+  systemOutputConfigured: boolean;
   storeMessageContent: boolean;
   apiHost: string;
   apiPort: number;
   databasePath: string;
   timezone: string;
+}
+
+export interface PlayerStat {
+  key: string;
+  label: string;
+  value: number;
+}
+
+export interface PlayerStatsResponse {
+  userId: string;
+  stats: PlayerStat[];
+  updatedAt: string | null;
+}
+
+export type NotificationType = 'level_up' | 'achievement' | 'penalty' | 'daily_summary' | 'weekly_summary' | 'system';
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body: string | null;
+  metadata: Record<string, unknown> | null;
+  discordStatus: 'skipped' | 'pending' | 'sent' | 'failed';
+  discordMessageId: string | null;
+  createdAt: string;
+}
+
+export interface NotificationsResponse {
+  userId: string;
+  notifications: Notification[];
 }
 
 export interface Rank {

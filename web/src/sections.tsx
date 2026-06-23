@@ -4,6 +4,9 @@ import type {
   AchievementsResponse,
   Boundaries,
   Health,
+  NotificationsResponse,
+  NotificationType,
+  PlayerStatsResponse,
   Quest,
   QuestsResponse,
   Summary,
@@ -105,19 +108,91 @@ export function XpBar({ summary }: { summary: AsyncState<Summary> }) {
   );
 }
 
-export function StatsPanel({ summary }: { summary: AsyncState<Summary> }) {
+// The main player-progression card. The eight RPG attributes grow slowly from tracked
+// activity and quests; bars are drawn relative to the player's current strongest stat so
+// the spread between attributes is legible even before any hard cap is reached.
+export function PlayerStats({ player }: { player: AsyncState<PlayerStatsResponse> }) {
   return (
-    <Card title="Vital Stats" icon="📊">
-      <Async state={summary} loadingLabel="Loading stats…">
+    <Card title="Hunter Stats" icon="⚔" span={2} accent>
+      <Async state={player} loadingLabel="Reading attributes…">
+        {(data) => {
+          const max = Math.max(1, ...data.stats.map((s) => s.value));
+          return (
+            <ul className="player-stats">
+              {data.stats.map((stat) => (
+                <li key={stat.key} className="player-stat">
+                  <div className="player-stat-head">
+                    <span className="player-stat-label">{stat.label}</span>
+                    <span className="player-stat-value accent">{formatNumber(stat.value)}</span>
+                  </div>
+                  <ProgressBar percent={(stat.value / max) * 100} />
+                </li>
+              ))}
+            </ul>
+          );
+        }}
+      </Async>
+    </Card>
+  );
+}
+
+// Demoted secondary metrics — activity counts that used to be the "Vital Stats" focus.
+export function ActivityMetrics({ summary }: { summary: AsyncState<Summary> }) {
+  return (
+    <Card title="Activity Metrics" icon="📊">
+      <Async state={summary} loadingLabel="Loading metrics…">
         {(data) => (
           <div className="stat-grid">
-            <Stat label="Messages today" value={formatNumber(data.today.messages)} />
             <Stat label="XP today" value={formatNumber(data.today.xp)} />
-            <Stat label="Messages / 7d" value={formatNumber(data.week.messages)} />
-            <Stat label="XP / 7d" value={formatNumber(data.week.xp)} />
             <Stat label="Active days / 7d" value={`${data.week.activeDays}/7`} />
             <Stat label="Longest streak" value={`${data.rank.longestStreakDays}d`} />
+            <Stat label="XP / 7d" value={formatNumber(data.week.xp)} />
           </div>
+        )}
+      </Async>
+    </Card>
+  );
+}
+
+const NOTIFICATION_META: Record<NotificationType, { glyph: string; tone: string }> = {
+  level_up: { glyph: '⬆', tone: 'easy' },
+  achievement: { glyph: '🏆', tone: 'streak' },
+  penalty: { glyph: '⚠', tone: 'hard' },
+  daily_summary: { glyph: '📅', tone: 'muted' },
+  weekly_summary: { glyph: '📜', tone: 'muted' },
+  system: { glyph: '🔔', tone: 'normal' },
+};
+
+export function Notifications({ notifications }: { notifications: AsyncState<NotificationsResponse> }) {
+  return (
+    <Card title="System Notifications" icon="🔔" span={2}>
+      <Async
+        state={notifications}
+        isEmpty={(data) => data.notifications.length === 0}
+        emptyMessage="No notifications yet. Level ups and system events will appear here."
+        loadingLabel="Loading notifications…"
+      >
+        {(data) => (
+          <ul className="notification-list">
+            {data.notifications.map((n) => {
+              const meta = NOTIFICATION_META[n.type] ?? NOTIFICATION_META.system;
+              return (
+                <li key={n.id} className="notification">
+                  <span className="notification-glyph" aria-hidden>{meta.glyph}</span>
+                  <span className="notification-main">
+                    <span className="notification-title">{n.title}</span>
+                    {n.body ? <span className="muted">{n.body}</span> : null}
+                  </span>
+                  <span className="notification-side">
+                    <Badge tone={n.discordStatus === 'sent' ? 'easy' : 'muted'}>
+                      {n.discordStatus === 'sent' ? 'sent' : n.discordStatus === 'skipped' ? 'local' : n.discordStatus}
+                    </Badge>
+                    <span className="muted">{relativeTime(n.createdAt)}</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </Async>
     </Card>

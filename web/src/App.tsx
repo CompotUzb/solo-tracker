@@ -3,11 +3,13 @@ import { useEndpoint } from './api.js';
 import { subscribeToDashboardEvents } from './live.js';
 import {
   Achievements,
+  ActivityMetrics,
   DailyQuests,
   MainQuests,
+  Notifications,
+  PlayerStats,
   Profile,
   RecentActivity,
-  StatsPanel,
   WeeklyReportSection,
   XpBar,
 } from './sections.js';
@@ -15,6 +17,8 @@ import type {
   AchievementsResponse,
   Boundaries,
   Health,
+  NotificationsResponse,
+  PlayerStatsResponse,
   QuestsResponse,
   Summary,
   TimelineResponse,
@@ -33,9 +37,11 @@ export function App() {
   const health = useEndpoint<Health>('/api/health', [refreshKey]);
   const boundaries = useEndpoint<Boundaries>('/api/config/boundaries', []);
   const summary = useEndpoint<Summary>('/api/stats/summary', [refreshKey]);
+  const player = useEndpoint<PlayerStatsResponse>('/api/stats/player', [refreshKey]);
   const quests = useEndpoint<QuestsResponse>('/api/quests', [refreshKey]);
   const timeline = useEndpoint<TimelineResponse>('/api/timeline?limit=20', [refreshKey]);
   const achievements = useEndpoint<AchievementsResponse>('/api/achievements', [refreshKey]);
+  const notifications = useEndpoint<NotificationsResponse>('/api/notifications?limit=20', [refreshKey]);
   const weekly = useEndpoint<WeeklyReport>('/api/reports/weekly', [refreshKey]);
 
   useEffect(() => {
@@ -61,9 +67,11 @@ export function App() {
       <div className="grid">
         <Profile summary={summary} health={health} boundaries={boundaries} />
         <XpBar summary={summary} />
+        <PlayerStats player={player} />
+        <ActivityMetrics summary={summary} />
         <DailyQuests quests={quests} />
         <MainQuests quests={quests} />
-        <StatsPanel summary={summary} />
+        <Notifications notifications={notifications} />
         <RecentActivity timeline={timeline} />
         <Achievements achievements={achievements} />
         <WeeklyReportSection report={weekly} />

@@ -3,7 +3,16 @@ export interface DashboardEventHandlers {
   onRefresh: () => void;
 }
 
-const REFRESH_EVENTS = ['xp', 'quest.created', 'quest.completed', 'quest.updated', 'stats.updated', 'discord.message'] as const;
+const REFRESH_EVENTS = [
+  'xp',
+  'quest.created',
+  'quest.completed',
+  'quest.updated',
+  'stats.updated',
+  'stats.player.updated',
+  'notification',
+  'discord.message',
+] as const;
 
 export function subscribeToDashboardEvents({ onLiveChange, onRefresh }: DashboardEventHandlers): () => void {
   const stream = new EventSource('/api/events/stream');

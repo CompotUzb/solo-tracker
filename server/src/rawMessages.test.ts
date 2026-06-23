@@ -35,6 +35,28 @@ describe('raw Discord message persistence', () => {
     }
   });
 
+  it('stores thread id and title for messages in a thread', () => {
+    const db = openDatabase(':memory:');
+    try {
+      applyMigrations(db);
+      storeRawMessage(db, {
+        messageId: 'msg-thread',
+        guildId: 'guild-1',
+        channelId: 'thread-9',
+        parentChannelId: 'mind-training',
+        threadId: 'thread-9',
+        threadTitle: 'Deep work log',
+        authorId: 'user-1',
+        content: '',
+        messageTimestamp: '2026-06-23T06:00:00.000Z',
+      });
+      const row = db.prepare('select thread_id, thread_title, parent_channel_id from raw_messages where message_id=?').get('msg-thread');
+      expect(row).toEqual({ thread_id: 'thread-9', thread_title: 'Deep work log', parent_channel_id: 'mind-training' });
+    } finally {
+      db.close();
+    }
+  });
+
   it('does not duplicate rows for duplicate message ids', () => {
     const db = openDatabase(':memory:');
     try {

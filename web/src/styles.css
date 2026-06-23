@@ -156,6 +156,24 @@ code { color: var(--accent); font-family: ui-monospace, 'SFMono-Regular', Menlo,
 .achievement-name { font-weight: 600; }
 .achievement-main .muted { font-size: 0.78rem; }
 
+/* Player (Hunter) stats */
+.player-stats { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 22px; }
+.player-stat { display: flex; flex-direction: column; gap: 6px; }
+.player-stat-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.player-stat-label { font-size: 0.82rem; color: var(--text); }
+.player-stat-value { font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* System notifications */
+.notification-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.notification { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 10px 4px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+.notification:last-child { border-bottom: none; }
+.notification-glyph { font-size: 1.15rem; }
+.notification-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.notification-title { font-weight: 600; font-size: 0.9rem; }
+.notification-main .muted { font-size: 0.78rem; }
+.notification-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; white-space: nowrap; }
+.notification-side .muted { font-size: 0.74rem; }
+
 /* Weekly report */
 .weekly { display: flex; flex-direction: column; gap: 18px; }
 .weekly-totals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
@@ -179,6 +197,8 @@ code { color: var(--accent); font-family: ui-monospace, 'SFMono-Regular', Menlo,
   .grid { grid-template-columns: 1fr; }
   .span-2, .span-3 { grid-column: span 1; }
   .stat-grid { grid-template-columns: 1fr; }
+  .player-stats { grid-template-columns: 1fr; }
+  .notification-side { flex-direction: row; align-items: center; }
   .weekly-chart { height: 130px; }
   .activity { grid-template-columns: auto 1fr auto; }
   .activity-time { display: none; }

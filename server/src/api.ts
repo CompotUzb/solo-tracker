@@ -11,6 +11,8 @@ import { applyMigrations, openDatabase, type Db } from './db.js';
 import { addQuest, completeQuest, getQuest, listQuests, QUEST_TYPES, type QuestStatus } from './quests.js';
 import { listAchievements, weeklyReport } from './reports.js';
 import { getRankSnapshot } from './xp.js';
+import { applyStatGains, getPlayerStats, questStatGains } from './stats.js';
+import { listNotifications, type Notifier } from './notifications.js';
 
 export type DiscordStatus = 'connected' | 'disconnected' | 'skipped';
 
@@ -41,10 +43,12 @@ export function createApi({
   config,
   discordStatus,
   db: providedDb,
+  notifier,
 }: {
   config: AppConfig;
   discordStatus: () => DiscordStatus;
   db?: Db;
+  notifier?: Notifier;
 }) {
   const app = Fastify({ logger: true });
   const db = providedDb ?? openDatabase(config.databasePath);
@@ -96,6 +100,17 @@ export function createApi({
         longestStreakDays: snapshot.longestStreakDays,
       },
     };
+  });
+
+  app.get<{ Querystring: { userId?: string } }>('/api/stats/player', async (req) => {
+    const userId = req.query.userId ?? DEFAULT_USER_ID;
+    return getPlayerStats(db, userId);
+  });
+
+  app.get<{ Querystring: { userId?: string; limit?: string } }>('/api/notifications', async (req) => {
+    const userId = req.query.userId ?? DEFAULT_USER_ID;
+    const limit = Number(req.query.limit ?? 50);
+    return { userId, notifications: listNotifications(db, userId, Number.isFinite(limit) ? limit : 50) };
   });
 
   app.get<{ Querystring: { userId?: string; limit?: string } }>('/api/timeline', async (req) => {
@@ -165,6 +180,43 @@ export function createApi({
       return { error: 'forbidden' };
     }
     const result = completeQuest(db, { questId: req.params.id, userId });
+
+    // Completing a quest builds player stats (Discipline, scaled by difficulty). Skip on
+    // an idempotent re-complete so stats are not double-awarded.
+    let playerStats = getPlayerStats(db, userId).stats;
+    if (!result.alreadyCompleted) {
+      const statResult = applyStatGains(db, {
+        userId,
+        gains: questStatGains(result.quest.questType),
+        reason: 'quest_completed',
+        source: 'quest',
+        sourceId: result.quest.id,
+      });
+      playerStats = statResult.stats;
+      broadcast('stats.player.updated', { userId });
+
+      // System notifications: a level-up is the headline event; a rank change is a notable
+      // system update. Both are stored locally and delivered to Discord when configured.
+      if (result.award.leveledUp) {
+        notifier?.notify({
+          userId,
+          type: 'level_up',
+          title: `Level ${result.award.current.level} reached`,
+          body: `Completed "${result.quest.title}" (+${result.award.xpAwarded} XP).`,
+          metadata: { level: result.award.current.level, rankCode: result.award.current.rankCode, questId: result.quest.id },
+        });
+      }
+      if (result.award.rankChanged) {
+        notifier?.notify({
+          userId,
+          type: 'system',
+          title: `New rank: ${result.award.current.rankName}`,
+          body: `Promoted to ${result.award.current.rankName}.`,
+          metadata: { rankCode: result.award.current.rankCode },
+        });
+      }
+    }
+
     broadcast('quest.updated', { action: 'completed', userId, quest: result.quest });
     broadcast('xp', {
       userId,
@@ -185,6 +237,7 @@ export function createApi({
       leveledUp: result.award.leveledUp,
       rankChanged: result.award.rankChanged,
       stats: getRankSnapshot(db, userId),
+      playerStats,
       alreadyCompleted: result.alreadyCompleted,
     };
   });

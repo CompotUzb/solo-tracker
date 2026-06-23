@@ -41,12 +41,28 @@ const envBoolean = z.preprocess((value) => {
   return value;
 }, z.boolean());
 
+// Optional named-channel ids load from env only; an empty/placeholder value disables
+// that channel. A value left as the .env.example placeholder is treated as unset so a
+// freshly copied env file does not accidentally track a fake channel.
+const optionalChannelId = z.preprocess((value) => {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.startsWith('replace_with_')) return undefined;
+  return trimmed;
+}, z.string().min(1).optional());
+
 const envSchema = z.object({
   DISCORD_TOKEN: z.string().min(1),
   DISCORD_CLIENT_ID: z.string().min(1),
   DATABASE_PATH: z.string().default('./data/solo-system.sqlite'),
   TRACKED_GUILD_ID: z.string().min(1),
   TRACKED_CHANNEL_IDS: z.string().min(1),
+  COMMANDS_CHANNEL_ID: optionalChannelId,
+  DAILY_QUESTS_CHANNEL_ID: optionalChannelId,
+  MIND_TRAINING_CHANNEL_ID: optionalChannelId,
+  BODY_TRAINING_CHANNEL_ID: optionalChannelId,
+  WORK_SKILL_CHANNEL_ID: optionalChannelId,
+  SYSTEM_OUTPUT_CHANNEL_ID: optionalChannelId,
   API_HOST: z.string().default('127.0.0.1'),
   API_PORT: z.coerce.number().int().positive().default(3333),
   STORE_MESSAGE_CONTENT: envBoolean.default(false),
@@ -54,6 +70,9 @@ const envSchema = z.object({
   TIMEZONE: z.string().default(Intl.DateTimeFormat().resolvedOptions().timeZone),
   SKIP_DISCORD_LOGIN: envBoolean.default(false),
 });
+
+/** Channel categories that map Discord activity to player stats. */
+export type ChannelCategory = 'daily-quests' | 'mind-training' | 'body-training' | 'work-skill';
 
 export type AppConfig = ReturnType<typeof loadConfig>;
 
@@ -64,11 +83,27 @@ function resolveDatabasePath(databasePath: string): string {
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
   const parsed = envSchema.parse(env);
-  const trackedChannelIds = parsed.TRACKED_CHANNEL_IDS.split(',')
-    .map((id) => id.trim())
-    .filter(Boolean);
 
-  if (!trackedChannelIds.length) {
+  // Map the named input channels to their stat category. The command channel and the
+  // system-output channel are intentionally excluded — they are not tracked for stats.
+  const channelCategories: Record<string, ChannelCategory> = {};
+  const addCategory = (id: string | undefined, category: ChannelCategory) => {
+    if (id) channelCategories[id] = category;
+  };
+  addCategory(parsed.DAILY_QUESTS_CHANNEL_ID, 'daily-quests');
+  addCategory(parsed.MIND_TRAINING_CHANNEL_ID, 'mind-training');
+  addCategory(parsed.BODY_TRAINING_CHANNEL_ID, 'body-training');
+  addCategory(parsed.WORK_SKILL_CHANNEL_ID, 'work-skill');
+
+  // The tracked whitelist is the legacy list plus every configured stat channel,
+  // de-duplicated while preserving order.
+  const trackedChannelIds = [
+    ...parsed.TRACKED_CHANNEL_IDS.split(',').map((id) => id.trim()),
+    ...Object.keys(channelCategories),
+  ].filter(Boolean);
+  const uniqueTrackedChannelIds = [...new Set(trackedChannelIds)];
+
+  if (!uniqueTrackedChannelIds.length) {
     throw new Error('TRACKED_CHANNEL_IDS must include at least one channel ID');
   }
 
@@ -77,7 +112,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     discordClientId: parsed.DISCORD_CLIENT_ID,
     databasePath: resolveDatabasePath(parsed.DATABASE_PATH),
     trackedGuildId: parsed.TRACKED_GUILD_ID,
-    trackedChannelIds,
+    trackedChannelIds: uniqueTrackedChannelIds,
+    channelCategories,
+    commandsChannelId: parsed.COMMANDS_CHANNEL_ID ?? null,
+    systemOutputChannelId: parsed.SYSTEM_OUTPUT_CHANNEL_ID ?? null,
     apiHost: parsed.API_HOST,
     apiPort: parsed.API_PORT,
     storeMessageContent: parsed.STORE_MESSAGE_CONTENT,
@@ -91,6 +129,8 @@ export function publicConfig(config: AppConfig) {
   return {
     guildId: config.trackedGuildId,
     trackedChannelIds: config.trackedChannelIds,
+    channelCategories: config.channelCategories,
+    systemOutputConfigured: config.systemOutputChannelId != null,
     storeMessageContent: config.storeMessageContent,
     apiHost: config.apiHost,
     apiPort: config.apiPort,
