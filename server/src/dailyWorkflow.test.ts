@@ -71,12 +71,12 @@ describe("rank-based daily tier", () => {
         "**Rank:** `E-Rank`  **Tier:** `Beginner`  **Status:** `ACTIVE`",
         "",
         "**Required**",
-        "- [ ] **Push-ups:** `0 / 30 reps`",
-        "- [ ] **Sit-ups:** `0 / 30 reps`",
-        "- [ ] **Squats:** `0 / 30 reps`",
-        "- [ ] **Pull-ups:** `0 / 10 reps`",
-        "- [ ] **Cardio:** `0 / 2 km` OR `0 / 5000 steps`",
-        "- [ ] **Mental Focus:** `0 / 15 min` OR `0 / 5 pages`",
+        "- ⬜ **Push-ups:** `0 / 30 reps`",
+        "- ⬜ **Sit-ups:** `0 / 30 reps`",
+        "- ⬜ **Squats:** `0 / 30 reps`",
+        "- ⬜ **Pull-ups:** `0 / 10 reps`",
+        "- ⬜ **Cardio:** `0 / 2 km` OR `0 / 5000 steps`",
+        "- ⬜ **Mental Focus:** `0 / 15 min` OR `0 / 5 pages`",
         "",
         "**Reward:** `+100 XP` · stat gains · `Daily Common Box`",
         "",
@@ -193,6 +193,7 @@ describe("daily Discord workflow", () => {
       accepted.quest?.metrics.find((metric) => metric.key === "pushups")
         ?.progress,
     ).toBe(30);
+    expect(accepted.progressChanged).toBe(true);
     const event = db
       .prepare(
         "select raw_match from daily_quest_metric_events where discord_message_id=?",
@@ -233,5 +234,55 @@ describe("daily Discord workflow", () => {
     expect(
       result.quest?.metrics.find((metric) => metric.key === "squats")?.progress,
     ).toBe(10);
+    expect(result.progressChanged).toBe(false);
+  });
+
+  it("renders updated progress, completion state, and over-completion in the original message format", async () => {
+    await createDailyQuestForDate({
+      db,
+      userId: USER,
+      localDate: "2026-06-23",
+      hunterRank: "E-Rank",
+      channelId: "daily-channel",
+      publisher: {
+        publish: async () => ({
+          parentMessageId: "message-1",
+          dailyQuestMessageId: "message-1",
+          threadId: "thread-1",
+          threadName: "Day-1",
+          threadIntroMessageId: "thread-message-1",
+        }),
+      },
+      now: "2026-06-23T01:00:00.000Z",
+    });
+
+    const result = recordDailyThreadMessage({
+      db,
+      userId: USER,
+      threadId: "thread-1",
+      messageId: "message-progress",
+      content:
+        "45 pushups 30 situps 30 squats 30 pullups walked 3km studied 45m",
+      storeRawMatch: false,
+      now: "2026-06-23T02:00:00.000Z",
+    });
+    const message = formatDailyQuestMessage(1, "E-Rank", "e", result.quest);
+
+    expect(result.completion?.xpAwarded).toBe(100);
+    expect(result.quest?.status).toBe("completed");
+    expect(message).toContain(
+      [
+        "**Rank:** `E-Rank`  **Tier:** `Beginner`  **Status:** `COMPLETED`",
+        "",
+        "**Required**",
+        "- ✅ **Push-ups:** `45 / 30 reps`",
+        "- ✅ **Sit-ups:** `30 / 30 reps`",
+        "- ✅ **Squats:** `30 / 30 reps`",
+        "- ✅ **Pull-ups:** `30 / 10 reps`",
+        "- ✅ **Cardio:** `3 / 2 km` OR `0 / 5000 steps`",
+        "- ✅ **Mental Focus:** `45 / 15 min` OR `0 / 5 pages`",
+      ].join("\n"),
+    );
+    expect(message).toContain("Daily Quest complete.");
   });
 });

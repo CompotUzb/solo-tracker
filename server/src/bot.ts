@@ -158,6 +158,19 @@ export function createDailyQuestPublisher(client: Client): DailyQuestPublisher {
         threadIntroMessageId: introMessage.id ?? null,
       };
     },
+    async editDailyQuestMessage(input) {
+      const channel = (await client.channels.fetch(input.channelId)) as {
+        messages?: {
+          fetch?: (messageId: string) => Promise<{
+            edit?: (content: string) => Promise<unknown>;
+          } | null>;
+        };
+      } | null;
+      const message = await channel?.messages?.fetch?.(input.messageId);
+      if (!message || typeof message.edit !== "function") return false;
+      await message.edit(input.content);
+      return true;
+    },
   };
 }
 

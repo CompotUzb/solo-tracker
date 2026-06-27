@@ -108,6 +108,11 @@ export interface DailyQuestPublisher {
     threadName: string;
     threadIntroMessageId: string | null;
   }>;
+  editDailyQuestMessage?(input: {
+    channelId: string;
+    messageId: string;
+    content: string;
+  }): Promise<boolean>;
 }
 
 function dailyTierFromNumber(tier: number): DailyTier {
@@ -153,31 +158,96 @@ function target(tier: DailyTier, key: DailyMetricKey): number | null {
   return DAILY_TIER_TARGETS[tier][key] ?? null;
 }
 
+function statusLabel(status: string): string {
+  if (status === "completed") return "COMPLETED";
+  if (status === "failed") return "FAILED";
+  if (status === "penalty") return "PENALTY ACTIVE";
+  return "ACTIVE";
+}
+
+function metricProgress(
+  quest: DailyQuestView | null | undefined,
+  key: DailyMetricKey,
+): number {
+  return quest?.metrics.find((metric) => metric.key === key)?.progress ?? 0;
+}
+
+function metricDone(
+  quest: DailyQuestView | null | undefined,
+  key: DailyMetricKey,
+): boolean {
+  return Boolean(quest?.metrics.find((metric) => metric.key === key)?.done);
+}
+
+function singleMetricLine(
+  quest: DailyQuestView | null | undefined,
+  key: DailyMetricKey,
+  label: string,
+  unit: string,
+  tier: DailyTier,
+): string {
+  const icon = metricDone(quest, key) ? "✅" : "⬜";
+  return `- ${icon} **${label}:** \`${metricProgress(quest, key)} / ${target(tier, key)} ${unit}\``;
+}
+
+function dualMetricLine(
+  quest: DailyQuestView | null | undefined,
+  label: string,
+  first: { key: DailyMetricKey; unit: string },
+  second: { key: DailyMetricKey; unit: string },
+  tier: DailyTier,
+): string {
+  const icon =
+    metricDone(quest, first.key) || metricDone(quest, second.key) ? "✅" : "⬜";
+  const firstTarget = target(tier, first.key);
+  const secondTarget = target(tier, second.key);
+  const firstPart =
+    firstTarget == null
+      ? null
+      : `\`${metricProgress(quest, first.key)} / ${firstTarget} ${first.unit}\``;
+  const secondPart =
+    secondTarget == null
+      ? null
+      : `\`${metricProgress(quest, second.key)} / ${secondTarget} ${second.unit}\``;
+  return `- ${icon} **${label}:** ${[firstPart, secondPart].filter(Boolean).join(" OR ")}`;
+}
+
 export function formatDailyQuestMessage(
   streakDayNumber: number,
   hunterRank: string,
   tier: DailyTier,
+  quest?: DailyQuestView | null,
 ): string {
-  const steps = target(tier, "steps");
-  const pages = target(tier, "mental_pages");
-  const cardio = `- [ ] **Cardio:** \`0 / ${target(tier, "cardio_km")} km\`${steps == null ? "" : ` OR \`0 / ${steps} steps\``}`;
-  const mental = `- [ ] **Mental Focus:** \`0 / ${target(tier, "mental_minutes")} min\`${pages == null ? "" : ` OR \`0 / ${pages} pages\``}`;
   return [
     `**📋 SYSTEM DAILY QUEST — Day-${streakDayNumber}**`,
     "",
-    `**Rank:** \`${hunterRank}\`  **Tier:** \`${DAILY_TIER_NAMES[tier]}\`  **Status:** \`ACTIVE\``,
+    `**Rank:** \`${hunterRank}\`  **Tier:** \`${DAILY_TIER_NAMES[tier]}\`  **Status:** \`${statusLabel(quest?.status ?? "active")}\``,
     "",
     "**Required**",
-    `- [ ] **Push-ups:** \`0 / ${target(tier, "pushups")} reps\``,
-    `- [ ] **Sit-ups:** \`0 / ${target(tier, "situps")} reps\``,
-    `- [ ] **Squats:** \`0 / ${target(tier, "squats")} reps\``,
-    `- [ ] **Pull-ups:** \`0 / ${target(tier, "pullups")} reps\``,
-    cardio,
-    mental,
+    singleMetricLine(quest, "pushups", "Push-ups", "reps", tier),
+    singleMetricLine(quest, "situps", "Sit-ups", "reps", tier),
+    singleMetricLine(quest, "squats", "Squats", "reps", tier),
+    singleMetricLine(quest, "pullups", "Pull-ups", "reps", tier),
+    dualMetricLine(
+      quest,
+      "Cardio",
+      { key: "cardio_km", unit: "km" },
+      { key: "steps", unit: "steps" },
+      tier,
+    ),
+    dualMetricLine(
+      quest,
+      "Mental Focus",
+      { key: "mental_minutes", unit: "min" },
+      { key: "mental_pages", unit: "pages" },
+      tier,
+    ),
     "",
     `**Reward:** \`+${DAILY_COMPLETE_XP} XP\` · stat gains · \`Daily Common Box\``,
     "",
-    `Log progress inside the **Day-${streakDayNumber}** thread only.`,
+    quest?.status === "completed"
+      ? "Daily Quest complete."
+      : `Log progress inside the **Day-${streakDayNumber}** thread only.`,
   ].join("\n");
 }
 
@@ -236,7 +306,12 @@ export async function createDailyQuestForDate(input: {
   const streakDayNumber = quest.streakDayNumber ?? 1;
   const published = await input.publisher.publish({
     channelId: input.channelId,
-    content: formatDailyQuestMessage(streakDayNumber, input.hunterRank, tier),
+    content: formatDailyQuestMessage(
+      streakDayNumber,
+      input.hunterRank,
+      tier,
+      quest,
+    ),
     threadName: `Day-${streakDayNumber}`,
     threadContent: formatDailyQuestThreadMessage(streakDayNumber),
   });
@@ -293,16 +368,30 @@ export function recordDailyThreadMessage(input: {
   parsed: ParsedDailyMetric[];
   quest: DailyQuestView | null;
   completion: CompleteDailyResult | null;
+  progressChanged: boolean;
 } {
   const quest = getActiveDailyQuestByThread(input.db, input.threadId);
   if (!quest || quest.id == null || quest.date == null)
-    return { accepted: false, parsed: [], quest: null, completion: null };
+    return {
+      accepted: false,
+      parsed: [],
+      quest: null,
+      completion: null,
+      progressChanged: false,
+    };
   const parsed = parseDailyProgress(input.content);
   if (parsed.length === 0)
-    return { accepted: true, parsed, quest, completion: null };
+    return {
+      accepted: true,
+      parsed,
+      quest,
+      completion: null,
+      progressChanged: false,
+    };
 
   const now = input.now ?? new Date().toISOString();
   let completion: CompleteDailyResult | null = null;
+  let progressChanged = false;
   for (const metric of parsed) {
     const inserted = input.db
       .prepare(
@@ -320,6 +409,7 @@ export function recordDailyThreadMessage(input: {
         now,
       );
     if (inserted.changes === 0) continue;
+    progressChanged = true;
     const result = logDailyMetric(
       input.db,
       input.userId,
@@ -335,6 +425,7 @@ export function recordDailyThreadMessage(input: {
     parsed,
     quest: getDailyQuest(input.db, input.userId, quest.date),
     completion,
+    progressChanged,
   };
 }
 

@@ -228,6 +228,7 @@ export interface DailyQuestView {
   completedCount: number;
   totalCount: number;
   discordParentMessageId: string | null;
+  discordDailyQuestMessageId: string | null;
   discordThreadId: string | null;
   discordThreadName: string | null;
   streakDayNumber: number | null;
@@ -241,7 +242,7 @@ export function getDailyQuest(
 ): DailyQuestView | null {
   const day = db
     .prepare(
-      "select id,hunter_rank,tier,status,completed_at,discord_parent_message_id,discord_thread_id,discord_thread_name,streak_day_number,rewards_granted from daily_quest_days where user_id=? and local_date=?",
+      "select id,hunter_rank,tier,status,completed_at,discord_parent_message_id,discord_daily_quest_message_id,discord_thread_id,discord_thread_name,streak_day_number,rewards_granted from daily_quest_days where user_id=? and local_date=?",
     )
     .get(userId, localDate) as
     | {
@@ -251,6 +252,7 @@ export function getDailyQuest(
         status: string;
         completed_at: string | null;
         discord_parent_message_id: string | null;
+        discord_daily_quest_message_id: string | null;
         discord_thread_id: string | null;
         discord_thread_name: string | null;
         streak_day_number: number | null;
@@ -314,6 +316,7 @@ export function getDailyQuest(
     completedCount,
     totalCount: 6,
     discordParentMessageId: day.discord_parent_message_id,
+    discordDailyQuestMessageId: day.discord_daily_quest_message_id,
     discordThreadId: day.discord_thread_id,
     discordThreadName: day.discord_thread_name,
     streakDayNumber: day.streak_day_number,
@@ -461,7 +464,8 @@ export function logDailyMetric(
 
   const next =
     value.progress != null ? value.progress : row.progress + (value.delta ?? 0);
-  const clamped = Math.max(0, Math.min(next, row.target));
+  // Future feature: reward over-completion, e.g. 2x required quest completion.
+  const clamped = Math.max(0, next);
   db.prepare(
     "update daily_quest_metrics set progress=?, updated_at=? where user_id=? and local_date=? and metric_key=?",
   ).run(clamped, now, userId, localDate, metricKey);

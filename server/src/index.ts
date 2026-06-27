@@ -19,6 +19,7 @@ import { awardMessageStats } from "./stats.js";
 import { getDailyQuest, runDailyEvaluation } from "./dailyQuests.js";
 import {
   createDailyQuestForDate,
+  formatDailyQuestMessage,
   getActiveDailyQuestByThread,
   hasReachedLocalTime,
   localDateFor,
@@ -308,7 +309,7 @@ async function main() {
           );
         }
       },
-      onDailyQuestMessage(message) {
+      async onDailyQuestMessage(message) {
         const result = recordDailyThreadMessage({
           db,
           userId: SEED_USER_ID,
@@ -319,6 +320,35 @@ async function main() {
           hooks: { notify: (input) => notifier.notify(input) },
         });
         if (result.accepted && result.parsed.length > 0) {
+          if (
+            result.progressChanged &&
+            result.quest &&
+            config.dailyQuestsChannelId &&
+            dailyPublisher?.editDailyQuestMessage
+          ) {
+            const messageId =
+              result.quest.discordDailyQuestMessageId ??
+              result.quest.discordParentMessageId;
+            if (messageId) {
+              await dailyPublisher
+                .editDailyQuestMessage({
+                  channelId: config.dailyQuestsChannelId,
+                  messageId,
+                  content: formatDailyQuestMessage(
+                    result.quest.streakDayNumber ?? 1,
+                    result.quest.hunterRank,
+                    result.quest.tier,
+                    result.quest,
+                  ),
+                })
+                .catch((error) =>
+                  console.error(
+                    "daily quest message edit failed:",
+                    error instanceof Error ? error.message : error,
+                  ),
+                );
+            }
+          }
           api.broadcast("daily.updated", {
             userId: SEED_USER_ID,
             reason: "thread_message",

@@ -205,4 +205,29 @@ describe("daily quest publisher", () => {
     );
     expect(threadSend).not.toHaveBeenCalledWith(expect.stringContaining("[ ]"));
   });
+
+  it("edits the original daily quest message", async () => {
+    const edit = vi.fn(async () => undefined);
+    const fetchMessage = vi.fn(async () => ({ edit }));
+    const client = {
+      channels: {
+        fetch: vi.fn(async () => ({
+          messages: { fetch: fetchMessage },
+        })),
+      },
+    };
+
+    const edited = await createDailyQuestPublisher(
+      client as never,
+    ).editDailyQuestMessage?.({
+      channelId: "daily-channel",
+      messageId: "parent-message-1",
+      content: "updated daily quest",
+    });
+
+    expect(edited).toBe(true);
+    expect(client.channels.fetch).toHaveBeenCalledWith("daily-channel");
+    expect(fetchMessage).toHaveBeenCalledWith("parent-message-1");
+    expect(edit).toHaveBeenCalledWith("updated daily quest");
+  });
 });
