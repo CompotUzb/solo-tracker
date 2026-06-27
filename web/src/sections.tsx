@@ -49,7 +49,7 @@ export function Profile({
   boundaries: AsyncState<Boundaries>;
 }) {
   return (
-    <Card title="Hunter Profile" icon="◈" area="profile" accent>
+    <Card title="Player Status" icon="◈" area="profile" accent>
       <Async state={summary} loadingLabel="Reading profile…">
         {(data) => (
           <div className="profile">
@@ -58,20 +58,20 @@ export function Profile({
               <span className="profile-level-label">LVL</span>
             </div>
             <div className="profile-meta">
-              <p className="eyebrow">Rank {data.rank.rankCode.toUpperCase()}</p>
-              <h3>{data.rank.rankName}</h3>
-              <p className="muted">
-                {formatNumber(data.rank.totalXp)} total XP accumulated
-              </p>
+              <p className="eyebrow">System Rank: {data.rank.rankName}</p>
+              <h3>Player</h3>
+              <p className="muted">Total XP: {formatNumber(data.rank.totalXp)}</p>
               <div className="chips">
                 <Badge tone="streak">
-                  🔥 {data.rank.currentStreakDays}d streak
+                  Current Streak: {data.rank.currentStreakDays}d
                 </Badge>
-                <Badge tone="muted">Best {data.rank.longestStreakDays}d</Badge>
+                <Badge tone="muted">
+                  Best Streak: {data.rank.longestStreakDays}d
+                </Badge>
                 <Badge tone={data.today.streakEligible ? "easy" : "muted"}>
                   {data.today.streakEligible
-                    ? "Today secured"
-                    : "Today at risk"}
+                    ? "Status: Active"
+                    : "Status: Today At Risk"}
                 </Badge>
               </div>
             </div>
