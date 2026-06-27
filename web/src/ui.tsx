@@ -1,5 +1,5 @@
-import React from 'react';
-import type { AsyncState } from './api.js';
+import React from "react";
+import type { AsyncState } from "./api.js";
 
 // Small presentational primitives shared by every dashboard section. They give the
 // dashboard its consistent "System window" framing and uniform loading/empty/error
@@ -22,14 +22,23 @@ export function Card({
   action?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const className = ['card', area ? `area-${area}` : '', span ? `span-${span}` : '', accent ? 'card-accent' : '']
+  const className = [
+    "card",
+    area ? `area-${area}` : "",
+    span ? `span-${span}` : "",
+    accent ? "card-accent" : "",
+  ]
     .filter(Boolean)
-    .join(' ');
+    .join(" ");
   return (
     <section className={className}>
       <header className="card-head">
         <h2>
-          {icon ? <span className="card-icon" aria-hidden>{icon}</span> : null}
+          {icon ? (
+            <span className="card-icon" aria-hidden>
+              {icon}
+            </span>
+          ) : null}
           {title}
         </h2>
         {action ? <div className="card-action">{action}</div> : null}
@@ -39,7 +48,7 @@ export function Card({
   );
 }
 
-export function Loading({ label = 'Syncing…' }: { label?: string }) {
+export function Loading({ label = "Syncing…" }: { label?: string }) {
   return (
     <div className="state state-loading" role="status" aria-live="polite">
       <span className="pulse" aria-hidden />
@@ -51,7 +60,9 @@ export function Loading({ label = 'Syncing…' }: { label?: string }) {
 export function ErrorState({ message }: { message: string }) {
   return (
     <div className="state state-error" role="alert">
-      <span className="state-glyph" aria-hidden>⚠</span>
+      <span className="state-glyph" aria-hidden>
+        ⚠
+      </span>
       <span>{message}</span>
     </div>
   );
@@ -60,7 +71,9 @@ export function ErrorState({ message }: { message: string }) {
 export function EmptyState({ message }: { message: string }) {
   return (
     <div className="state state-empty">
-      <span className="state-glyph" aria-hidden>∅</span>
+      <span className="state-glyph" aria-hidden>
+        ∅
+      </span>
       <span>{message}</span>
     </div>
   );
@@ -85,26 +98,54 @@ export function Async<T>({
 }) {
   if (state.loading) return <Loading label={loadingLabel} />;
   if (state.error) return <ErrorState message={state.error} />;
-  if (state.data == null) return <EmptyState message={emptyMessage ?? 'No data yet.'} />;
-  if (isEmpty?.(state.data)) return <EmptyState message={emptyMessage ?? 'Nothing here yet.'} />;
+  if (state.data == null)
+    return <EmptyState message={emptyMessage ?? "No data yet."} />;
+  if (isEmpty?.(state.data))
+    return <EmptyState message={emptyMessage ?? "Nothing here yet."} />;
   return <>{children(state.data)}</>;
 }
 
-export function ProgressBar({ percent, label }: { percent: number; label?: string }) {
+export function ProgressBar({
+  percent,
+  label,
+}: {
+  percent: number;
+  label?: string;
+}) {
   const width = Math.max(0, Math.min(100, percent));
   return (
-    <div className="meter" role="progressbar" aria-valuenow={Math.round(width)} aria-valuemin={0} aria-valuemax={100}>
+    <div
+      className="meter"
+      role="progressbar"
+      aria-valuenow={Math.round(width)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
       <span style={{ width: `${width}%` }} />
       {label ? <em className="meter-label">{label}</em> : null}
     </div>
   );
 }
 
-export function Badge({ children, tone = 'default' }: { children: React.ReactNode; tone?: string }) {
+export function Badge({
+  children,
+  tone = "default",
+}: {
+  children: React.ReactNode;
+  tone?: string;
+}) {
   return <span className={`badge badge-${tone}`}>{children}</span>;
 }
 
-export function Stat({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
+export function Stat({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: React.ReactNode;
+  hint?: string;
+}) {
   return (
     <div className="stat">
       <span className="stat-value">{value}</span>

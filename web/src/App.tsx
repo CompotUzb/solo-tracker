@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { useEndpoint } from './api.js';
-import { subscribeToDashboardEvents } from './live.js';
+import { useEffect, useState } from "react";
+import { useEndpoint } from "./api.js";
+import { subscribeToDashboardEvents } from "./live.js";
 import {
   Achievements,
   ActivityMetrics,
@@ -12,7 +12,7 @@ import {
   RecentActivity,
   WeeklyReportSection,
   XpBar,
-} from './sections.js';
+} from "./sections.js";
 import type {
   AchievementsResponse,
   Boundaries,
@@ -24,7 +24,7 @@ import type {
   Summary,
   TimelineResponse,
   WeeklyReport,
-} from './types.js';
+} from "./types.js";
 
 /**
  * The dashboard composes one independent data fetch per live section. A shared
@@ -35,16 +35,25 @@ export function App() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [live, setLive] = useState(false);
 
-  const health = useEndpoint<Health>('/api/health', [refreshKey]);
-  const boundaries = useEndpoint<Boundaries>('/api/config/boundaries', []);
-  const summary = useEndpoint<Summary>('/api/stats/summary', [refreshKey]);
-  const player = useEndpoint<PlayerStatsResponse>('/api/stats/player', [refreshKey]);
-  const daily = useEndpoint<DailySnapshot>('/api/daily', [refreshKey]);
-  const quests = useEndpoint<QuestsResponse>('/api/quests', [refreshKey]);
-  const timeline = useEndpoint<TimelineResponse>('/api/timeline?limit=20', [refreshKey]);
-  const achievements = useEndpoint<AchievementsResponse>('/api/achievements', [refreshKey]);
-  const notifications = useEndpoint<NotificationsResponse>('/api/notifications?limit=20', [refreshKey]);
-  const weekly = useEndpoint<WeeklyReport>('/api/reports/weekly', [refreshKey]);
+  const health = useEndpoint<Health>("/api/health", [refreshKey]);
+  const boundaries = useEndpoint<Boundaries>("/api/config/boundaries", []);
+  const summary = useEndpoint<Summary>("/api/stats/summary", [refreshKey]);
+  const player = useEndpoint<PlayerStatsResponse>("/api/stats/player", [
+    refreshKey,
+  ]);
+  const daily = useEndpoint<DailySnapshot>("/api/daily", [refreshKey]);
+  const quests = useEndpoint<QuestsResponse>("/api/quests", [refreshKey]);
+  const timeline = useEndpoint<TimelineResponse>("/api/timeline?limit=20", [
+    refreshKey,
+  ]);
+  const achievements = useEndpoint<AchievementsResponse>("/api/achievements", [
+    refreshKey,
+  ]);
+  const notifications = useEndpoint<NotificationsResponse>(
+    "/api/notifications?limit=20",
+    [refreshKey],
+  );
+  const weekly = useEndpoint<WeeklyReport>("/api/reports/weekly", [refreshKey]);
 
   useEffect(() => {
     return subscribeToDashboardEvents({
@@ -60,9 +69,9 @@ export function App() {
           <p className="eyebrow">Solo System · Local Tracker</p>
           <h1>System Dashboard</h1>
         </div>
-        <span className={`live ${live ? 'live-on' : 'live-off'}`}>
+        <span className={`live ${live ? "live-on" : "live-off"}`}>
           <span className="live-dot" aria-hidden />
-          {live ? 'Live' : 'Offline'}
+          {live ? "Live" : "Offline"}
         </span>
       </header>
 
@@ -81,7 +90,8 @@ export function App() {
       </div>
 
       <footer className="footer muted">
-        Local-first · only tracked channels are stored · message content disabled by default
+        Local-first · only tracked channels are stored · message content
+        disabled by default
       </footer>
     </main>
   );

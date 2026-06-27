@@ -9,14 +9,7 @@ export const XP_RULES = {
 // Hunter ranks (Solo Leveling style): the standard E–S tiers, plus the unofficial
 // National-Level designation and the transcendent Monarch tier, mapped by level range.
 export type RankCode =
-  | "e"
-  | "d"
-  | "c"
-  | "b"
-  | "a"
-  | "s"
-  | "national"
-  | "monarch";
+  "e" | "d" | "c" | "b" | "a" | "s" | "national" | "monarch";
 export interface RankState {
   totalXp: number;
   level: number;

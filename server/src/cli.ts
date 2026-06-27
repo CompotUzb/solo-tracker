@@ -1,27 +1,29 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { loadConfig, publicConfig } from './config.js';
-import { applyMigrations, migrate, openDatabase } from './db.js';
-import { resetLocalData } from './resetLocalData.js';
+import fs from "node:fs";
+import path from "node:path";
+import { loadConfig, publicConfig } from "./config.js";
+import { applyMigrations, migrate, openDatabase } from "./db.js";
+import { resetLocalData } from "./resetLocalData.js";
 
 async function main() {
-  const command = process.argv[2] ?? 'doctor';
+  const command = process.argv[2] ?? "doctor";
   const config = loadConfig();
 
-  if (command === 'migrate') {
+  if (command === "migrate") {
     migrate(config);
     console.log(`migrations applied to ${config.databasePath}`);
     return;
   }
 
-  if (command === 'doctor') {
+  if (command === "doctor") {
     console.log(
       JSON.stringify(
         {
           ok: true,
           config: publicConfig(config),
-          databaseDirectoryExists: fs.existsSync(path.dirname(path.resolve(config.databasePath))),
-          discordLogin: config.skipDiscordLogin ? 'skipped' : 'enabled',
+          databaseDirectoryExists: fs.existsSync(
+            path.dirname(path.resolve(config.databasePath)),
+          ),
+          discordLogin: config.skipDiscordLogin ? "skipped" : "enabled",
           tokenLoaded: Boolean(config.discordToken),
         },
         null,
@@ -31,7 +33,7 @@ async function main() {
     return;
   }
 
-  if (command === 'export-json') {
+  if (command === "export-json") {
     const db = openDatabase(config.databasePath);
     try {
       console.log(
@@ -39,8 +41,12 @@ async function main() {
           {
             exportedAt: new Date().toISOString(),
             boundaries: publicConfig(config),
-            dailyStats: db.prepare('select * from daily_stats order by local_date desc').all(),
-            rankSnapshots: db.prepare('select * from rank_snapshots order by updated_at desc').all(),
+            dailyStats: db
+              .prepare("select * from daily_stats order by local_date desc")
+              .all(),
+            rankSnapshots: db
+              .prepare("select * from rank_snapshots order by updated_at desc")
+              .all(),
           },
           null,
           2,
@@ -52,18 +58,24 @@ async function main() {
     return;
   }
 
-  if (command === 'reset-local-data') {
-    if (process.env.NODE_ENV === 'production') throw new Error('reset-local-data is disabled in production');
-    if (!process.argv.includes('--confirm')) {
-      throw new Error('Refusing to reset without --confirm. Run: pnpm reset:local-data --confirm');
+  if (command === "reset-local-data") {
+    if (process.env.NODE_ENV === "production")
+      throw new Error("reset-local-data is disabled in production");
+    if (!process.argv.includes("--confirm")) {
+      throw new Error(
+        "Refusing to reset without --confirm. Run: pnpm reset:local-data --confirm",
+      );
     }
     const db = openDatabase(config.databasePath);
     try {
       applyMigrations(db);
       const results = resetLocalData(db);
       console.log(`Local data reset complete: ${config.databasePath}`);
-      for (const result of results) console.log(`- ${result.table}: ${result.rowsCleared} row(s) cleared`);
-      console.log('- preserved: users, tracked_channels, app_meta, schema, source, migrations, and .env');
+      for (const result of results)
+        console.log(`- ${result.table}: ${result.rowsCleared} row(s) cleared`);
+      console.log(
+        "- preserved: users, tracked_channels, app_meta, schema, source, migrations, and .env",
+      );
     } finally {
       db.close();
     }

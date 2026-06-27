@@ -1,6 +1,12 @@
-import { randomUUID } from 'node:crypto';
-import type { Db } from './db.js';
-import { awardXp, getRankSnapshot, type AwardXpResult, type RankSnapshot, type XpClock } from './xp.js';
+import { randomUUID } from "node:crypto";
+import type { Db } from "./db.js";
+import {
+  awardXp,
+  getRankSnapshot,
+  type AwardXpResult,
+  type RankSnapshot,
+  type XpClock,
+} from "./xp.js";
 
 // Quest difficulty tiers and their fixed XP rewards (parent XP spec).
 export const QUEST_XP_REWARDS = {
@@ -14,7 +20,7 @@ export const QUEST_XP_REWARDS = {
 export type QuestType = keyof typeof QUEST_XP_REWARDS;
 export const QUEST_TYPES = Object.keys(QUEST_XP_REWARDS) as QuestType[];
 
-export type QuestStatus = 'active' | 'completed' | 'abandoned';
+export type QuestStatus = "active" | "completed" | "abandoned";
 
 export interface Quest {
   id: string;
@@ -73,7 +79,9 @@ function isQuestType(value: string): value is QuestType {
 /** XP awarded for completing a quest of the given difficulty tier. */
 export function xpRewardForType(questType: string): number {
   if (!isQuestType(questType)) {
-    throw new Error(`unknown quest type: ${questType}. Expected one of ${QUEST_TYPES.join(', ')}`);
+    throw new Error(
+      `unknown quest type: ${questType}. Expected one of ${QUEST_TYPES.join(", ")}`,
+    );
   }
   return QUEST_XP_REWARDS[questType];
 }
@@ -84,7 +92,7 @@ function mapQuest(row: QuestRow): Quest {
     userId: row.user_id,
     title: row.title,
     description: row.description,
-    questType: isQuestType(row.quest_type) ? row.quest_type : 'normal',
+    questType: isQuestType(row.quest_type) ? row.quest_type : "normal",
     status: row.status as QuestStatus,
     targetCount: row.target_count,
     progressCount: row.progress_count,
@@ -98,26 +106,44 @@ function mapQuest(row: QuestRow): Quest {
 }
 
 export function getQuest(db: Db, questId: string): Quest | undefined {
-  const row = db.prepare('select * from quests where id=?').get(questId) as QuestRow | undefined;
+  const row = db.prepare("select * from quests where id=?").get(questId) as
+    QuestRow | undefined;
   return row ? mapQuest(row) : undefined;
 }
 
-export function listQuests(db: Db, userId: string, status?: QuestStatus): Quest[] {
+export function listQuests(
+  db: Db,
+  userId: string,
+  status?: QuestStatus,
+): Quest[] {
   const rows = (
     status
-      ? db.prepare('select * from quests where user_id=? and status=? order by created_at desc').all(userId, status)
-      : db.prepare('select * from quests where user_id=? order by created_at desc').all(userId)
+      ? db
+          .prepare(
+            "select * from quests where user_id=? and status=? order by created_at desc",
+          )
+          .all(userId, status)
+      : db
+          .prepare(
+            "select * from quests where user_id=? order by created_at desc",
+          )
+          .all(userId)
   ) as QuestRow[];
   return rows.map(mapQuest);
 }
 
 /** `/quest add` — create an active quest, deriving its XP reward from the difficulty tier. */
-export function addQuest(db: Db, input: AddQuestInput, clock: XpClock = {}): Quest {
+export function addQuest(
+  db: Db,
+  input: AddQuestInput,
+  clock: XpClock = {},
+): Quest {
   const title = input.title?.trim();
-  if (!title) throw new Error('quest title is required');
+  if (!title) throw new Error("quest title is required");
   const xpReward = xpRewardForType(input.questType);
   const targetCount = input.targetCount ?? 1;
-  if (!Number.isInteger(targetCount) || targetCount < 1) throw new Error('targetCount must be a positive integer');
+  if (!Number.isInteger(targetCount) || targetCount < 1)
+    throw new Error("targetCount must be a positive integer");
 
   const now = clock.now?.() ?? new Date().toISOString();
   const id = (clock.genId ?? randomUUID)();
@@ -155,11 +181,14 @@ export function completeQuest(
   const now = clock.now?.() ?? new Date().toISOString();
 
   const run = db.transaction((): CompleteQuestResult => {
-    const row = db.prepare('select * from quests where id=?').get(params.questId) as QuestRow | undefined;
+    const row = db
+      .prepare("select * from quests where id=?")
+      .get(params.questId) as QuestRow | undefined;
     if (!row) throw new Error(`quest not found: ${params.questId}`);
-    if (row.user_id !== params.userId) throw new Error('quest does not belong to this user');
+    if (row.user_id !== params.userId)
+      throw new Error("quest does not belong to this user");
 
-    if (row.status === 'completed') {
+    if (row.status === "completed") {
       const snapshot = getRankSnapshot(db, params.userId);
       return {
         quest: mapQuest(row),
@@ -172,20 +201,26 @@ export function completeQuest(
       `update quests set status='completed',progress_count=target_count,completed_at=?,updated_at=? where id=?`,
     ).run(now, now, params.questId);
 
-    const awardClock: XpClock = clock.genId ? { now: () => now, genId: clock.genId } : { now: () => now };
+    const awardClock: XpClock = clock.genId
+      ? { now: () => now, genId: clock.genId }
+      : { now: () => now };
     const award = awardXp(
       db,
       {
         userId: params.userId,
         amount: row.xp_reward,
-        reason: 'quest_completed',
-        source: 'quest',
+        reason: "quest_completed",
+        source: "quest",
         sourceId: params.questId,
       },
       awardClock,
     );
 
-    return { quest: getQuest(db, params.questId)!, award, alreadyCompleted: false };
+    return {
+      quest: getQuest(db, params.questId)!,
+      award,
+      alreadyCompleted: false,
+    };
   });
 
   return run();

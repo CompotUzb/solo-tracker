@@ -113,7 +113,7 @@ curl --fail --silent --show-error http://127.0.0.1:3333/api/health
 Expected shape:
 
 ```json
-{"ok":true,"db":"ok","discord":"skipped"}
+{ "ok": true, "db": "ok", "discord": "skipped" }
 ```
 
 ## 6. Verify API health
@@ -351,7 +351,7 @@ curl --fail --silent --show-error http://127.0.0.1:3333/api/health
 Expected Discord state:
 
 ```json
-{"ok":true,"db":"ok","discord":"connected"}
+{ "ok": true, "db": "ok", "discord": "connected" }
 ```
 
 Send a normal, non-bot message in one configured channel. Confirm that:

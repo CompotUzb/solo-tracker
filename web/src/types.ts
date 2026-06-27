@@ -34,7 +34,13 @@ export interface PlayerStatsResponse {
   updatedAt: string | null;
 }
 
-export type NotificationType = 'level_up' | 'achievement' | 'penalty' | 'daily_summary' | 'weekly_summary' | 'system';
+export type NotificationType =
+  | "level_up"
+  | "achievement"
+  | "penalty"
+  | "daily_summary"
+  | "weekly_summary"
+  | "system";
 
 export interface Notification {
   id: string;
@@ -43,7 +49,7 @@ export interface Notification {
   title: string;
   body: string | null;
   metadata: Record<string, unknown> | null;
-  discordStatus: 'skipped' | 'pending' | 'sent' | 'failed';
+  discordStatus: "skipped" | "pending" | "sent" | "failed";
   discordMessageId: string | null;
   createdAt: string;
 }
@@ -65,7 +71,7 @@ export interface DailyMetric {
 export interface DailyQuest {
   id: string | null;
   date: string;
-  tier: 'e' | 'c' | 's';
+  tier: "e" | "c" | "s";
   tierLabel: string;
   tierName: string;
   hunterRank: string;
@@ -128,8 +134,8 @@ export interface Summary {
   rank: Rank;
 }
 
-export type QuestType = 'easy' | 'normal' | 'hard' | 'boss' | 'raid';
-export type QuestStatus = 'active' | 'completed' | 'abandoned';
+export type QuestType = "easy" | "normal" | "hard" | "boss" | "raid";
+export type QuestStatus = "active" | "completed" | "abandoned";
 
 export interface Quest {
   id: string;
@@ -196,5 +202,10 @@ export interface WeeklyReport {
   rangeStart: string;
   rangeEnd: string;
   days: WeeklyReportDay[];
-  totals: { messages: number; xp: number; questsCompleted: number; activeDays: number };
+  totals: {
+    messages: number;
+    xp: number;
+    questsCompleted: number;
+    activeDays: number;
+  };
 }

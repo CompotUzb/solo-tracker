@@ -1,4 +1,4 @@
-import type { Db } from './db.js';
+import type { Db } from "./db.js";
 
 // Read-only projections that back the dashboard's achievements and weekly-report
 // sections. These never mutate state; they only read existing tables (achievements,
@@ -71,23 +71,23 @@ export interface WeeklyReport {
 }
 
 function pad2(value: number): string {
-  return value.toString().padStart(2, '0');
+  return value.toString().padStart(2, "0");
 }
 
 /** Local calendar date (YYYY-MM-DD) for an instant, in the configured timezone. */
 function localDate(instant: Date, timezone: string): string {
-  return new Intl.DateTimeFormat('en-CA', {
+  return new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).format(instant);
 }
 
 /** The current local calendar week, Monday through Sunday. */
 function currentLocalWeekDates(now: Date, timezone: string): string[] {
   const today = localDate(now, timezone);
-  const [year, month, day] = today.split('-').map(Number);
+  const [year, month, day] = today.split("-").map(Number);
   const base = Date.UTC(year, month - 1, day);
   const weekday = new Date(base).getUTCDay();
   const daysSinceMonday = (weekday + 6) % 7;
@@ -95,7 +95,9 @@ function currentLocalWeekDates(now: Date, timezone: string): string[] {
   const dates: string[] = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday + i * 86_400_000);
-    dates.push(`${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`);
+    dates.push(
+      `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`,
+    );
   }
   return dates;
 }
@@ -112,7 +114,12 @@ interface DailyStatsRow {
  * local date of their completion. Returns one entry per day so empty days
  * render as zeros rather than gaps.
  */
-export function weeklyReport(db: Db, userId: string, timezone: string, now: Date = new Date()): WeeklyReport {
+export function weeklyReport(
+  db: Db,
+  userId: string,
+  timezone: string,
+  now: Date = new Date(),
+): WeeklyReport {
   const dates = currentLocalWeekDates(now, timezone);
   const rangeStart = dates[0];
   const rangeEnd = dates[dates.length - 1];
@@ -126,7 +133,9 @@ export function weeklyReport(db: Db, userId: string, timezone: string, now: Date
   const statsByDate = new Map(statsRows.map((row) => [row.local_date, row]));
 
   const completedRows = db
-    .prepare(`select completed_at from quests where user_id=? and status='completed' and completed_at is not null`)
+    .prepare(
+      `select completed_at from quests where user_id=? and status='completed' and completed_at is not null`,
+    )
     .all(userId) as { completed_at: string }[];
   const questsByDate = new Map<string, number>();
   for (const row of completedRows) {

@@ -33,7 +33,7 @@ the tracked channels and to **quests you complete**.
 2. Open the **Bot** tab → **Add Bot**.
 3. Under **Privileged Gateway Intents**, enable **MESSAGE CONTENT INTENT**.
    (The bot needs this to read message text and measure message length, even though
-   message content is *not stored* by default.)
+   message content is _not stored_ by default.)
 4. Click **Reset Token** → copy the token. This is your `DISCORD_TOKEN` — keep it secret.
 5. On the **General Information** tab, copy the **Application ID** → that's
    `DISCORD_CLIENT_ID`.
@@ -57,23 +57,23 @@ In Discord: **User Settings → Advanced → Developer Mode = ON**. Now right-cl
 
 You need:
 
-| What | Variable | How |
-|------|----------|-----|
-| Your server | `TRACKED_GUILD_ID` | Right-click the server icon → Copy Server ID |
-| Tracked channels | the `*_CHANNEL_ID` vars below | Right-click each channel → Copy Channel ID |
+| What             | Variable                      | How                                          |
+| ---------------- | ----------------------------- | -------------------------------------------- |
+| Your server      | `TRACKED_GUILD_ID`            | Right-click the server icon → Copy Server ID |
+| Tracked channels | the `*_CHANNEL_ID` vars below | Right-click each channel → Copy Channel ID   |
 
 ### Recommended channels
 
 Create (or reuse) these text channels and grab each ID:
 
-| Channel | Purpose | Variable | Feeds which stats |
-|---------|---------|----------|-------------------|
-| `#daily-quests` | log daily tasks | `DAILY_QUESTS_CHANNEL_ID` | Discipline (+ Health/Intelligence/Technical by keyword) |
-| `#mind-training` | study / reading / thinking | `MIND_TRAINING_CHANNEL_ID` | Intelligence (+ Communication/Survival/Discipline) |
-| `#body-training` | workouts / physical | `BODY_TRAINING_CHANNEL_ID` | Strength (+ Health/Discipline/Survival) |
-| `#work-skill` | coding / work / career | `WORK_SKILL_CHANNEL_ID` | Technical Skill (+ Wealth/Communication/Intelligence) |
-| `#commands` | type bot commands here | `COMMANDS_CHANNEL_ID` | (not tracked for stats) |
-| `#system-output` | bot posts notifications here | `SYSTEM_OUTPUT_CHANNEL_ID` | (output only) |
+| Channel          | Purpose                      | Variable                   | Feeds which stats                                       |
+| ---------------- | ---------------------------- | -------------------------- | ------------------------------------------------------- |
+| `#daily-quests`  | log daily tasks              | `DAILY_QUESTS_CHANNEL_ID`  | Discipline (+ Health/Intelligence/Technical by keyword) |
+| `#mind-training` | study / reading / thinking   | `MIND_TRAINING_CHANNEL_ID` | Intelligence (+ Communication/Survival/Discipline)      |
+| `#body-training` | workouts / physical          | `BODY_TRAINING_CHANNEL_ID` | Strength (+ Health/Discipline/Survival)                 |
+| `#work-skill`    | coding / work / career       | `WORK_SKILL_CHANNEL_ID`    | Technical Skill (+ Wealth/Communication/Intelligence)   |
+| `#commands`      | type bot commands here       | `COMMANDS_CHANNEL_ID`      | (not tracked for stats)                                 |
+| `#system-output` | bot posts notifications here | `SYSTEM_OUTPUT_CHANNEL_ID` | (output only)                                           |
 
 Make sure the bot can **see** the four tracked channels and **send** to `#system-output`.
 
@@ -121,7 +121,7 @@ Key points:
 - **`SYSTEM_OUTPUT_CHANNEL_ID`** — if set, notifications are posted to that channel. If left
   blank, the app still runs fine and notifications are dashboard-only (you'll see
   `Discord notifications skipped: SYSTEM_OUTPUT_CHANNEL_ID not configured.` in the logs).
-- **`STORE_MESSAGE_CONTENT=false`** keeps your message *text* out of the database (only
+- **`STORE_MESSAGE_CONTENT=false`** keeps your message _text_ out of the database (only
   length, timestamps, IDs are stored). Set it to `true` (and `CONTENT_MAX_CHARS` > 0) only
   if you want keyword-based **secondary** stat gains — see [How stats grow](#how-stats-grow).
 - Set `TIMEZONE` to your IANA zone (e.g. `Asia/Tashkent`, `Europe/London`) so "today" and
@@ -175,6 +175,7 @@ This runs the API + the Vite dashboard with live reload.
 Once the bot shows **connected** and is in your server:
 
 ### Log activity → grow stats
+
 Just post messages in the tracked channels:
 
 - A message in **#body-training** ("ran 5k") → **+1 Strength**.
@@ -186,6 +187,7 @@ Just post messages in the tracked channels:
 Watch the **Hunter Stats** card on the dashboard tick up in real time.
 
 ### Quests → earn XP, level up, unlock achievements
+
 Quests drive your global XP/rank. Create and complete them via the API:
 
 ```bash
@@ -203,6 +205,7 @@ Completing a quest awards XP (easy 10 → raid 400), builds **Discipline**, and 
 and **Main Quests** cards.
 
 ### Discord commands (in `#commands` only)
+
 Type these in your `COMMANDS_CHANNEL_ID` channel:
 
 - `!summary today` or `/summary today` → publishes a **daily summary** notification.
@@ -211,6 +214,7 @@ Type these in your `COMMANDS_CHANNEL_ID` channel:
 The summary is posted to `#system-output` (if configured) and stored for the dashboard.
 
 ### Penalties (manual)
+
 Log a penalty/warning (e.g. you broke a commitment):
 
 ```bash
@@ -220,6 +224,7 @@ curl -X POST http://127.0.0.1:3333/api/penalties \
 ```
 
 ### Where notifications show up
+
 Every notification is saved locally and listed on the **System Notifications** card. If
 `SYSTEM_OUTPUT_CHANNEL_ID` is set, the same message is posted to that Discord channel.
 
@@ -232,13 +237,13 @@ real-life tasks. You set a quest's tier by honest **effort + impact**, then you 
 it in the real world and mark it complete. There are no monsters; the "boss" is the hard
 thing you've been avoiding, and the "raid" is a goal big enough to need a whole campaign.
 
-| Tier | XP | What it really is | Time / effort | Real examples |
-|------|----|-------------------|---------------|---------------|
-| **Easy** | 10 | A micro-habit / minimum rep | 5–15 min | 10 pushups · read 5 pages · 15-min study · make your bed |
-| **Normal** | 25 | A solid daily task you committed to | 30–60 min | full workout · 1h focused study · finish a work ticket · cook a healthy meal |
-| **Hard** | 60 | A demanding session, or something you keep avoiding | half a day of real effort | finish a project module · 2–3h deep practice · long run · a hard conversation |
-| **Boss** | 150 | A **milestone or fear you finally face** | sustained over days | ship a feature · pass an exam · gym PR · give a presentation · finish a course chapter |
-| **Raid** | 400 | A **campaign / transformation goal** | weeks to months | land a job or client · earn a certification · run a 10k · launch a product · a 30-day challenge |
+| Tier       | XP  | What it really is                                   | Time / effort             | Real examples                                                                                   |
+| ---------- | --- | --------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------- |
+| **Easy**   | 10  | A micro-habit / minimum rep                         | 5–15 min                  | 10 pushups · read 5 pages · 15-min study · make your bed                                        |
+| **Normal** | 25  | A solid daily task you committed to                 | 30–60 min                 | full workout · 1h focused study · finish a work ticket · cook a healthy meal                    |
+| **Hard**   | 60  | A demanding session, or something you keep avoiding | half a day of real effort | finish a project module · 2–3h deep practice · long run · a hard conversation                   |
+| **Boss**   | 150 | A **milestone or fear you finally face**            | sustained over days       | ship a feature · pass an exam · gym PR · give a presentation · finish a course chapter          |
+| **Raid**   | 400 | A **campaign / transformation goal**                | weeks to months           | land a job or client · earn a certification · run a 10k · launch a product · a 30-day challenge |
 
 Tips for using it as real training:
 
@@ -256,29 +261,29 @@ The **Daily Quest** is a fixed daily checklist shown at the top of the dashboard
 heartbeat of the system. Pick a **tier** (E / C / S) that matches your level, then clear
 every objective each day:
 
-| Metric | E-Rank | C-Rank | S-Rank |
-|--------|--------|--------|--------|
-| Push-ups | 30 | 60 | 100 |
-| Sit-ups | 30 | 60 | 100 |
-| Squats | 30 | 60 | 100 |
-| Pull-ups | 10 | 30 | 60 |
-| Running / Cardio | 1 km | 2.5 km | 5 km |
-| Mental Focus | read 5p / study 15m | read 15p / study 45m | study 2h+ |
+| Metric           | E-Rank              | C-Rank               | S-Rank    |
+| ---------------- | ------------------- | -------------------- | --------- |
+| Push-ups         | 30                  | 60                   | 100       |
+| Sit-ups          | 30                  | 60                   | 100       |
+| Squats           | 30                  | 60                   | 100       |
+| Pull-ups         | 10                  | 30                   | 60        |
+| Running / Cardio | 1 km                | 2.5 km               | 5 km      |
+| Mental Focus     | read 5p / study 15m | read 15p / study 45m | study 2h+ |
 
 Log progress on each metric (`+1`, `+5`, or **Done**). When **all six** are met, the day
 clears and the System rewards you:
 
 - **+100 XP** to your global level/rank.
 - **+3 unallocated stat points** — spend them on any Hunter attribute from the panel.
-- A **loot box**: a daily *Common* box (30 min guilt-free leisure), a *Rare* box every
-  **7-day streak** (a real treat), and a *Legendary* box every **30-day streak** (a big
+- A **loot box**: a daily _Common_ box (30 min guilt-free leisure), a _Rare_ box every
+  **7-day streak** (a real treat), and a _Legendary_ box every **30-day streak** (a big
   reward milestone). You choose and honor the real-world reward.
 
 **Streak & penalty:** completing the day advances your streak. At local **midnight** the
 System evaluates the day — if you didn't clear it, your **streak resets to 0** and the
 dashboard enters **[PENALTY ZONE ACTIVE]** (a red banner; a red alert is posted to
 `#system-output`). The penalty lifts only when you log a **recovery flush** (e.g. a 5 km
-walk) with the *Log recovery flush* button. The evaluator also runs on startup, so days the
+walk) with the _Log recovery flush_ button. The evaluator also runs on startup, so days the
 app was offline are still reconciled.
 
 > The OS-level "lock entertainment apps" idea from the spec is intentionally **not**
@@ -291,11 +296,11 @@ Daily-quest API (used by the dashboard, also scriptable): `GET /api/daily`,
 
 ## How stats grow
 
-| Action | Effect |
-|--------|--------|
-| Meaningful message in a tracked channel (≥2 chars) | **+1** to that channel's primary stat |
-| Same, with `STORE_MESSAGE_CONTENT=true` and a matching keyword | **+1** to a relevant secondary stat |
-| Complete a quest | **+2** Discipline (hard +3, boss +4, raid +5) |
+| Action                                                         | Effect                                        |
+| -------------------------------------------------------------- | --------------------------------------------- |
+| Meaningful message in a tracked channel (≥2 chars)             | **+1** to that channel's primary stat         |
+| Same, with `STORE_MESSAGE_CONTENT=true` and a matching keyword | **+1** to a relevant secondary stat           |
+| Complete a quest                                               | **+2** Discipline (hard +3, boss +4, raid +5) |
 
 Guardrails so stats grow **slower than XP**:
 
@@ -307,19 +312,19 @@ Guardrails so stats grow **slower than XP**:
 shows progress to its next level.
 
 **Global XP/rank** is separate and comes only from **quests**. Each level maps to a Hunter
-rank, and total XP to *reach* level L is `50 × (L−1) × L` (the jump to the next level is
+rank, and total XP to _reach_ level L is `50 × (L−1) × L` (the jump to the next level is
 `100 × current level`).
 
-| Rank | Starts at level | Total XP needed | ≈ Raids (400 XP) | ≈ Bosses (150 XP) |
-|------|-----------------|-----------------|------------------|-------------------|
-| E-Rank | 1 | 0 | — | — |
-| D-Rank | 18 | 15,300 | 38 | 102 |
-| C-Rank | 26 | 32,500 | 81 | 217 |
-| B-Rank | 40 | 78,000 | 195 | 520 |
-| A-Rank | 51 | 127,500 | 319 | 850 |
-| S-Rank | 76 | 285,000 | 712 | 1,900 |
-| National-Level | 96 | 456,000 | 1,140 | 3,040 |
-| Monarch | 120 | 714,000 | 1,785 | 4,760 |
+| Rank           | Starts at level | Total XP needed | ≈ Raids (400 XP) | ≈ Bosses (150 XP) |
+| -------------- | --------------- | --------------- | ---------------- | ----------------- |
+| E-Rank         | 1               | 0               | —                | —                 |
+| D-Rank         | 18              | 15,300          | 38               | 102               |
+| C-Rank         | 26              | 32,500          | 81               | 217               |
+| B-Rank         | 40              | 78,000          | 195              | 520               |
+| A-Rank         | 51              | 127,500         | 319              | 850               |
+| S-Rank         | 76              | 285,000         | 712              | 1,900             |
+| National-Level | 96              | 456,000         | 1,140            | 3,040             |
+| Monarch        | 120             | 714,000         | 1,785            | 4,760             |
 
 Quest XP per difficulty: easy 10 · normal 25 · hard 60 · boss 150 · raid 400.
 
@@ -347,15 +352,15 @@ Quest XP per difficulty: easy 10 · normal 25 · hard 60 · boss 150 · raid 400
 
 ## Troubleshooting
 
-| Symptom | Fix |
-|---------|-----|
-| `/api/health` shows `"discord":"skipped"` | Set `SKIP_DISCORD_LOGIN=false` and restart. |
-| Bot stays offline / "connected" never appears | Wrong `DISCORD_TOKEN`, or bot not invited to the server. Re-check the OAuth invite. |
-| Stats don't move when I post | Posting in an untracked channel; or the channel ID in `.env` is wrong; or the bot can't see the channel. Confirm `MESSAGE CONTENT INTENT` is enabled. |
-| No secondary stats from keywords | Expected — keyword detection needs `STORE_MESSAGE_CONTENT=true` and `CONTENT_MAX_CHARS` > 0. |
-| Notifications don't reach Discord | `SYSTEM_OUTPUT_CHANNEL_ID` blank, or the bot lacks **Send Messages** in that channel. They're still saved locally. |
-| Dashboard looks stale after an update | Hard-refresh the browser (Ctrl+Shift+R). |
-| `pnpm test` fails with a `NODE_MODULE_VERSION` error | `better-sqlite3` is built for Node 22 (the Docker runtime). Run tests with Node 22, not a newer local Node. |
+| Symptom                                              | Fix                                                                                                                                                   |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/health` shows `"discord":"skipped"`            | Set `SKIP_DISCORD_LOGIN=false` and restart.                                                                                                           |
+| Bot stays offline / "connected" never appears        | Wrong `DISCORD_TOKEN`, or bot not invited to the server. Re-check the OAuth invite.                                                                   |
+| Stats don't move when I post                         | Posting in an untracked channel; or the channel ID in `.env` is wrong; or the bot can't see the channel. Confirm `MESSAGE CONTENT INTENT` is enabled. |
+| No secondary stats from keywords                     | Expected — keyword detection needs `STORE_MESSAGE_CONTENT=true` and `CONTENT_MAX_CHARS` > 0.                                                          |
+| Notifications don't reach Discord                    | `SYSTEM_OUTPUT_CHANNEL_ID` blank, or the bot lacks **Send Messages** in that channel. They're still saved locally.                                    |
+| Dashboard looks stale after an update                | Hard-refresh the browser (Ctrl+Shift+R).                                                                                                              |
+| `pnpm test` fails with a `NODE_MODULE_VERSION` error | `better-sqlite3` is built for Node 22 (the Docker runtime). Run tests with Node 22, not a newer local Node.                                           |
 
 ---
 

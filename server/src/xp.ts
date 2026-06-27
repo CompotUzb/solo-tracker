@@ -1,6 +1,6 @@
-import { randomUUID } from 'node:crypto';
-import { computeRankState, type RankState } from '@solo-system/shared';
-import type { Db } from './db.js';
+import { randomUUID } from "node:crypto";
+import { computeRankState, type RankState } from "@solo-system/shared";
+import type { Db } from "./db.js";
 
 // The XP engine owns the materialized player-stats row (rank_snapshots) and the
 // auditable award ledger (xp_awards). All XP that affects level/rank flows through
@@ -44,7 +44,12 @@ interface RankSnapshotRow {
   updated_at: string | null;
 }
 
-function toSnapshot(userId: string, totalXp: number, streaks: { current: number; longest: number }, updatedAt: string | null): RankSnapshot {
+function toSnapshot(
+  userId: string,
+  totalXp: number,
+  streaks: { current: number; longest: number },
+  updatedAt: string | null,
+): RankSnapshot {
   return {
     userId,
     ...computeRankState(totalXp),
@@ -57,10 +62,17 @@ function toSnapshot(userId: string, totalXp: number, streaks: { current: number;
 /** Read the player's current stats, materializing a zeroed snapshot if none exists yet. */
 export function getRankSnapshot(db: Db, userId: string): RankSnapshot {
   const row = db
-    .prepare('select user_id,total_xp,current_streak_days,longest_streak_days,updated_at from rank_snapshots where user_id=?')
+    .prepare(
+      "select user_id,total_xp,current_streak_days,longest_streak_days,updated_at from rank_snapshots where user_id=?",
+    )
     .get(userId) as RankSnapshotRow | undefined;
   if (!row) return toSnapshot(userId, 0, { current: 0, longest: 0 }, null);
-  return toSnapshot(userId, row.total_xp, { current: row.current_streak_days, longest: row.longest_streak_days }, row.updated_at);
+  return toSnapshot(
+    userId,
+    row.total_xp,
+    { current: row.current_streak_days, longest: row.longest_streak_days },
+    row.updated_at,
+  );
 }
 
 /**
@@ -68,24 +80,38 @@ export function getRankSnapshot(db: Db, userId: string): RankSnapshot {
  * level/rank. Records an xp_awards ledger row and upserts rank_snapshots atomically.
  * Total XP is floored at 0; streak counters are preserved.
  */
-export function awardXp(db: Db, input: AwardXpInput, clock: XpClock = {}): AwardXpResult {
+export function awardXp(
+  db: Db,
+  input: AwardXpInput,
+  clock: XpClock = {},
+): AwardXpResult {
   if (!Number.isFinite(input.amount) || !Number.isInteger(input.amount)) {
-    throw new Error('xp amount must be an integer');
+    throw new Error("xp amount must be an integer");
   }
   const now = clock.now?.() ?? new Date().toISOString();
   const genId = clock.genId ?? randomUUID;
 
   const run = db.transaction((): AwardXpResult => {
     const existing = db
-      .prepare('select user_id,total_xp,current_streak_days,longest_streak_days,updated_at from rank_snapshots where user_id=?')
+      .prepare(
+        "select user_id,total_xp,current_streak_days,longest_streak_days,updated_at from rank_snapshots where user_id=?",
+      )
       .get(input.userId) as RankSnapshotRow | undefined;
 
     const previousTotal = existing?.total_xp ?? 0;
-    const streaks = { current: existing?.current_streak_days ?? 0, longest: existing?.longest_streak_days ?? 0 };
+    const streaks = {
+      current: existing?.current_streak_days ?? 0,
+      longest: existing?.longest_streak_days ?? 0,
+    };
     const nextTotal = Math.max(0, previousTotal + input.amount);
     const appliedDelta = nextTotal - previousTotal;
 
-    const previous = toSnapshot(input.userId, previousTotal, streaks, existing?.updated_at ?? null);
+    const previous = toSnapshot(
+      input.userId,
+      previousTotal,
+      streaks,
+      existing?.updated_at ?? null,
+    );
     const current = toSnapshot(input.userId, nextTotal, streaks, now);
 
     db.prepare(
@@ -117,7 +143,16 @@ export function awardXp(db: Db, input: AwardXpInput, clock: XpClock = {}): Award
       db.prepare(
         `insert into xp_awards (id,user_id,source,source_id,reason,xp_delta,occurred_at,created_at)
          values (?,?,?,?,?,?,?,?)`,
-      ).run(genId(), input.userId, input.source, input.sourceId ?? null, input.reason, appliedDelta, now, now);
+      ).run(
+        genId(),
+        input.userId,
+        input.source,
+        input.sourceId ?? null,
+        input.reason,
+        appliedDelta,
+        now,
+        now,
+      );
     }
 
     return {
