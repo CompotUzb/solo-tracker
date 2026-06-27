@@ -64,44 +64,44 @@ describe("rank-based daily tier", () => {
 
   it("formats the exact E-Rank matrix with pull-ups", () => {
     const message = formatDailyQuestMessage(1, "E-Rank", "e");
-    expect(message).toContain("** SYSTEM DAILY QUEST — Day-1**");
-    expect(message).toContain("**Rank:** `E-Rank`");
-    expect(message).toContain("**Tier:** `Beginner`");
-    expect(message).toContain("**Status:** `ACTIVE`");
-    expect(message).toContain("- **Pull-ups:** `0 / 10 reps`");
-    expect(message).toContain(
-      "- **Cardio:** `0 / 2 km` OR `0 / 5000 steps`",
+    expect(message).toBe(
+      [
+        "**📋 SYSTEM DAILY QUEST — Day-1**",
+        "",
+        "**Rank:** `E-Rank`  **Tier:** `Beginner`  **Status:** `ACTIVE`",
+        "",
+        "**Required**",
+        "- [ ] **Push-ups:** `0 / 30 reps`",
+        "- [ ] **Sit-ups:** `0 / 30 reps`",
+        "- [ ] **Squats:** `0 / 30 reps`",
+        "- [ ] **Pull-ups:** `0 / 10 reps`",
+        "- [ ] **Cardio:** `0 / 2 km` OR `0 / 5000 steps`",
+        "- [ ] **Mental Focus:** `0 / 15 min` OR `0 / 5 pages`",
+        "",
+        "**Reward:** `+100 XP` · stat gains · `Daily Common Box`",
+        "",
+        "Log progress inside the **Day-1** thread only.",
+      ].join("\n"),
     );
-    expect(message).toContain("  - Strength `+2`");
-    expect(message).toContain("```txt\n30 pushups\n3x10 situps");
+    expect(message).not.toContain("---");
+    expect(message).not.toContain("```");
   });
 
   it("formats a short thread instruction message without the checklist", () => {
     const message = formatDailyQuestThreadMessage(1);
     expect(message).toBe(
       [
-        "** SYSTEM THREAD ACTIVE — Day-1**",
+        "**🧭 SYSTEM THREAD ACTIVE — Day-1**",
         "",
-        "Send your activity logs here.",
+        "Send your activity logs here. The System will parse them automatically.",
         "",
-        "**Examples**",
-        "```txt",
-        "30 pushups",
-        "3x10 situps",
-        "30 squats",
-        "10 pullups",
-        "walked 2km",
-        "5000 steps",
-        "studied 15m",
-        "read 5 pages",
-        "```",
-        "",
-        "The System will automatically parse your logs and update the dashboard.",
+        "Examples: `30 pushups`, `3x10 situps`, `walked 2km`, `studied 15m`, `read 5 pages`",
       ].join("\n"),
     );
     expect(message).not.toContain("**Required**");
     expect(message).not.toContain("**Reward**");
     expect(message).not.toContain("[ ]");
+    expect(message).not.toContain("```");
   });
 });
 
