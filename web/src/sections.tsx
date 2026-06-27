@@ -648,7 +648,7 @@ export function DailyProtocol({ daily }: { daily: AsyncState<DailySnapshot> }) {
                     ) : null}
                   </ul>
                   <div className="daily-remaining">
-                    <strong>Remaining:</strong>
+                    <strong>Remaining:</strong>{" "}
                     {remaining.length ? (
                       <ul>
                         {remaining.map((item) => (
