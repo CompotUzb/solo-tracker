@@ -156,29 +156,28 @@ describe("daily command parsing", () => {
 });
 
 describe("daily quest publisher", () => {
-  it("creates a standalone thread, posts the intro there, then posts the checklist with the thread link", async () => {
+  it("posts the checklist, creates a message thread, and sends only the short intro to the thread", async () => {
     const threadSend = vi.fn(async () => ({ id: "thread-message-1" }));
-    const threadCreate = vi.fn(async () => ({
+    const startThread = vi.fn(async () => ({
       id: "thread-1",
       name: "Day-1",
       send: threadSend,
     }));
     const channelSend = vi.fn(async () => ({
       id: "parent-message-1",
+      startThread,
     }));
     const client = {
       channels: {
         fetch: vi.fn(async () => ({
           send: channelSend,
-          threads: { create: threadCreate },
         })),
       },
     };
 
     const result = await createDailyQuestPublisher(client as never).publish({
       channelId: "daily-channel",
-      content: (threadId) =>
-        `SYSTEM DAILY QUEST — Day-1\nThread: <#${threadId}>\nRequired:\n[ ] Push-ups: 0 / 30`,
+      content: "SYSTEM DAILY QUEST — Day-1\nRequired:\n[ ] Push-ups: 0 / 30",
       threadName: "Day-1",
       threadContent:
         "SYSTEM THREAD ACTIVE — Day-1\n\nSend your activity logs here.",
@@ -191,16 +190,15 @@ describe("daily quest publisher", () => {
       threadName: "Day-1",
       threadIntroMessageId: "thread-message-1",
     });
-    expect(threadCreate).toHaveBeenCalledWith({
+    expect(channelSend).toHaveBeenCalledWith(
+      "SYSTEM DAILY QUEST — Day-1\nRequired:\n[ ] Push-ups: 0 / 30",
+    );
+    expect(startThread).toHaveBeenCalledWith({
       name: "Day-1",
       autoArchiveDuration: 1440,
-      type: 11,
     });
     expect(threadSend).toHaveBeenCalledWith(
       "SYSTEM THREAD ACTIVE — Day-1\n\nSend your activity logs here.",
-    );
-    expect(channelSend).toHaveBeenCalledWith(
-      "SYSTEM DAILY QUEST — Day-1\nThread: <#thread-1>\nRequired:\n[ ] Push-ups: 0 / 30",
     );
     expect(threadSend).not.toHaveBeenCalledWith(
       expect.stringContaining("Required:"),

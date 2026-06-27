@@ -63,12 +63,10 @@ describe("rank-based daily tier", () => {
   });
 
   it("formats the exact E-Rank matrix with pull-ups", () => {
-    const message = formatDailyQuestMessage(1, "E-Rank", "e", "thread-1");
+    const message = formatDailyQuestMessage(1, "E-Rank", "e");
     expect(message).toBe(
       [
         "**📋 SYSTEM DAILY QUEST — Day-1**",
-        "",
-        "**Thread:** <#thread-1>",
         "",
         "**Rank:** `E-Rank`  **Tier:** `Beginner`  **Status:** `ACTIVE`",
         "",
@@ -109,23 +107,13 @@ describe("rank-based daily tier", () => {
 
 describe("daily Discord workflow", () => {
   it("creates one Discord message and thread per local date", async () => {
-    type PublishInput = {
-      channelId: string;
-      content: (threadId: string) => string;
-      threadName: string;
-      threadContent: string;
-    };
-    let publishInput: PublishInput | null = null;
-    const publish = vi.fn(async (input: PublishInput) => {
-      publishInput = input;
-      return {
+    const publish = vi.fn(async () => ({
         parentMessageId: "message-1",
         dailyQuestMessageId: "message-1",
         threadId: "thread-1",
         threadName: "Day-1",
         threadIntroMessageId: "thread-message-1",
-      };
-    });
+    }));
     const publisher: DailyQuestPublisher = { publish };
     const input = {
       db,
@@ -145,14 +133,10 @@ describe("daily Discord workflow", () => {
     expect(publish).toHaveBeenCalledOnce();
     expect(publish).toHaveBeenCalledWith({
       channelId: "daily-channel",
-      content: expect.any(Function),
+      content: expect.stringContaining("SYSTEM DAILY QUEST — Day-1"),
       threadName: "Day-1",
       threadContent: formatDailyQuestThreadMessage(1),
     });
-    expect(publishInput).not.toBeNull();
-    expect(publishInput!.content("thread-1")).toContain(
-      "**Thread:** <#thread-1>",
-    );
     expect(first.quest.discordThreadName).toBe("Day-1");
     expect(first.quest.hunterRank).toBe("E-Rank");
     expect(first.quest.tierName).toBe("Beginner");

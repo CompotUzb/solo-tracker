@@ -98,7 +98,7 @@ export function parseDailyProgress(content: string): ParsedDailyMetric[] {
 export interface DailyQuestPublisher {
   publish(input: {
     channelId: string;
-    content: (threadId: string) => string;
+    content: string;
     threadName: string;
     threadContent: string;
   }): Promise<{
@@ -157,7 +157,6 @@ export function formatDailyQuestMessage(
   streakDayNumber: number,
   hunterRank: string,
   tier: DailyTier,
-  threadId?: string,
 ): string {
   const steps = target(tier, "steps");
   const pages = target(tier, "mental_pages");
@@ -166,8 +165,6 @@ export function formatDailyQuestMessage(
   return [
     `**📋 SYSTEM DAILY QUEST — Day-${streakDayNumber}**`,
     "",
-    threadId == null ? null : `**Thread:** <#${threadId}>`,
-    threadId == null ? null : "",
     `**Rank:** \`${hunterRank}\`  **Tier:** \`${DAILY_TIER_NAMES[tier]}\`  **Status:** \`ACTIVE\``,
     "",
     "**Required**",
@@ -181,9 +178,7 @@ export function formatDailyQuestMessage(
     `**Reward:** \`+${DAILY_COMPLETE_XP} XP\` · stat gains · \`Daily Common Box\``,
     "",
     `Log progress inside the **Day-${streakDayNumber}** thread only.`,
-  ]
-    .filter((line): line is string => line != null)
-    .join("\n");
+  ].join("\n");
 }
 
 export function formatDailyQuestThreadMessage(streakDayNumber: number): string {
@@ -241,13 +236,7 @@ export async function createDailyQuestForDate(input: {
   const streakDayNumber = quest.streakDayNumber ?? 1;
   const published = await input.publisher.publish({
     channelId: input.channelId,
-    content: (threadId) =>
-      formatDailyQuestMessage(
-        streakDayNumber,
-        input.hunterRank,
-        tier,
-        threadId,
-      ),
+    content: formatDailyQuestMessage(streakDayNumber, input.hunterRank, tier),
     threadName: `Day-${streakDayNumber}`,
     threadContent: formatDailyQuestThreadMessage(streakDayNumber),
   });

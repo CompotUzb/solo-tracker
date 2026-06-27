@@ -1,11 +1,4 @@
-import {
-  ChannelType,
-  Client,
-  Events,
-  GatewayIntentBits,
-  Partials,
-  type Message,
-} from "discord.js";
+import { Client, Events, GatewayIntentBits, Partials, type Message } from "discord.js";
 import type { AppConfig } from "./config.js";
 import {
   isMessageInTrackedBoundary,
@@ -133,32 +126,30 @@ export function createDailyQuestPublisher(client: Client): DailyQuestPublisher {
   return {
     async publish(input) {
       const channel = (await client.channels.fetch(input.channelId)) as {
-        send?: (content: string) => Promise<{ id: string }>;
-        threads?: {
-          create?: (options: {
+        send?: (content: string) => Promise<{
+          id: string;
+          startThread?: (options: {
             name: string;
             autoArchiveDuration: 1440;
-            type: ChannelType.PublicThread;
           }) => Promise<{
             id: string;
             name: string;
             send?: (content: string) => Promise<{ id?: string }>;
           }>;
-        };
+        }>;
       } | null;
       if (!channel || typeof channel.send !== "function")
         throw new Error("daily quest channel is not text-based");
-      if (typeof channel.threads?.create !== "function")
-        throw new Error("daily quest channel cannot create standalone threads");
-      const thread = await channel.threads.create({
+      const message = await channel.send(input.content);
+      if (typeof message.startThread !== "function")
+        throw new Error("daily quest message cannot create a thread");
+      const thread = await message.startThread({
         name: input.threadName,
         autoArchiveDuration: 1440,
-        type: ChannelType.PublicThread,
       });
       if (typeof thread.send !== "function")
         throw new Error("daily quest thread is not messageable");
       const introMessage = await thread.send(input.threadContent);
-      const message = await channel.send(input.content(thread.id));
       return {
         parentMessageId: message.id,
         dailyQuestMessageId: message.id,
