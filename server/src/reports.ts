@@ -1,8 +1,8 @@
 import type { Db } from "./db.js";
 
 // Read-only projections that back the dashboard's achievements and weekly-report
-// sections. These never mutate state; they only read existing tables (achievements,
-// daily_stats, quests) so they are safe to expose over the local API.
+// sections. These never mutate state; they only read existing tables so they are
+// safe to expose over the local API.
 
 export interface AchievementView {
   id: string;
@@ -108,11 +108,29 @@ interface DailyStatsRow {
   xp_earned: number;
 }
 
+interface XpRow {
+  occurred_at: string;
+  xp_delta: number;
+}
+
+interface ActivityRow {
+  occurred_at: string;
+}
+
+interface DailyQuestCompletionRow {
+  local_date: string;
+  completed_at: string | null;
+}
+
+function addToMap(map: Map<string, number>, key: string, value: number): void {
+  map.set(key, (map.get(key) ?? 0) + value);
+}
+
 /**
  * Summarize the current Monday-Sunday local week from already-stored data:
- * message counts and XP from `daily_stats`, completed quests bucketed by the
- * local date of their completion. Returns one entry per day so empty days
- * render as zeros rather than gaps.
+ * message counts from `daily_stats`, XP from structured ledgers, and completed
+ * quests bucketed by the local date of their completion. Returns one entry per
+ * day so empty days render as zeros rather than gaps.
  */
 export function weeklyReport(
   db: Db,
@@ -132,6 +150,40 @@ export function weeklyReport(
     .all(userId, rangeStart, rangeEnd) as DailyStatsRow[];
   const statsByDate = new Map(statsRows.map((row) => [row.local_date, row]));
 
+  const xpRows = [
+    ...(db
+      .prepare(
+        `select occurred_at,xp_delta from xp_awards
+         where user_id=?`,
+      )
+      .all(userId) as XpRow[]),
+    ...(db
+      .prepare(
+        `select occurred_at,xp_delta from xp_ledger
+         where user_id=?`,
+      )
+      .all(userId) as XpRow[]),
+  ];
+  const xpByDate = new Map<string, number>();
+  for (const row of xpRows) {
+    const date = localDate(new Date(row.occurred_at), timezone);
+    if (date >= rangeStart && date <= rangeEnd) {
+      addToMap(xpByDate, date, row.xp_delta);
+    }
+  }
+
+  const statActivityRows = db
+    .prepare(
+      `select occurred_at from stat_awards
+       where user_id=?`,
+    )
+    .all(userId) as ActivityRow[];
+  const activeDates = new Set<string>();
+  for (const row of statActivityRows) {
+    const date = localDate(new Date(row.occurred_at), timezone);
+    if (date >= rangeStart && date <= rangeEnd) activeDates.add(date);
+  }
+
   const completedRows = db
     .prepare(
       `select completed_at from quests where user_id=? and status='completed' and completed_at is not null`,
@@ -140,15 +192,30 @@ export function weeklyReport(
   const questsByDate = new Map<string, number>();
   for (const row of completedRows) {
     const date = localDate(new Date(row.completed_at), timezone);
-    questsByDate.set(date, (questsByDate.get(date) ?? 0) + 1);
+    if (date >= rangeStart && date <= rangeEnd) addToMap(questsByDate, date, 1);
+  }
+
+  const dailyQuestRows = db
+    .prepare(
+      `select local_date,completed_at from daily_quest_days
+       where user_id=? and status='completed'`,
+    )
+    .all(userId) as DailyQuestCompletionRow[];
+  for (const row of dailyQuestRows) {
+    const date = row.completed_at
+      ? localDate(new Date(row.completed_at), timezone)
+      : row.local_date;
+    if (date >= rangeStart && date <= rangeEnd) addToMap(questsByDate, date, 1);
   }
 
   const days: WeeklyReportDay[] = dates.map((date) => {
     const stats = statsByDate.get(date);
+    const structuredXp = xpByDate.get(date) ?? 0;
+    const legacyStatsXp = stats?.xp_earned ?? 0;
     return {
       date,
       messages: stats?.messages_count ?? 0,
-      xp: stats?.xp_earned ?? 0,
+      xp: structuredXp || legacyStatsXp,
       questsCompleted: questsByDate.get(date) ?? 0,
     };
   });
@@ -158,7 +225,14 @@ export function weeklyReport(
       messages: acc.messages + day.messages,
       xp: acc.xp + day.xp,
       questsCompleted: acc.questsCompleted + day.questsCompleted,
-      activeDays: acc.activeDays + (day.messages > 0 ? 1 : 0),
+      activeDays:
+        acc.activeDays +
+        (day.messages > 0 ||
+        day.xp > 0 ||
+        day.questsCompleted > 0 ||
+        activeDates.has(day.date)
+          ? 1
+          : 0),
     }),
     { messages: 0, xp: 0, questsCompleted: 0, activeDays: 0 },
   );

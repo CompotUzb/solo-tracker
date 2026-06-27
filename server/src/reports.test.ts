@@ -109,6 +109,86 @@ describe("weeklyReport", () => {
       activeDays: 0,
     });
   });
+
+  it("includes completed daily quests and structured XP awards without requiring messages", () => {
+    db = freshDb();
+    const now = new Date("2026-06-23T12:00:00.000Z");
+    const today = "2026-06-23";
+
+    db.prepare(
+      `insert into daily_quest_days (user_id,local_date,tier,status,completed_at,evaluated,created_at,updated_at)
+       values (?,?,?,?,?,?,?,?)`,
+    ).run(
+      USER,
+      today,
+      "e",
+      "completed",
+      now.toISOString(),
+      0,
+      now.toISOString(),
+      now.toISOString(),
+    );
+
+    db.prepare(
+      `insert into xp_awards (id,user_id,source,source_id,reason,xp_delta,occurred_at,created_at)
+       values (?,?,?,?,?,?,?,?)`,
+    ).run(
+      randomUUID(),
+      USER,
+      "daily_quest",
+      today,
+      "daily_quest_completed",
+      100,
+      now.toISOString(),
+      now.toISOString(),
+    );
+
+    const report = weeklyReport(db, USER, TZ, now);
+
+    expect(report.totals).toEqual({
+      messages: 0,
+      xp: 100,
+      questsCompleted: 1,
+      activeDays: 1,
+    });
+
+    const todayEntry = report.days.find((d) => d.date === today);
+    expect(todayEntry).toEqual({
+      date: today,
+      messages: 0,
+      xp: 100,
+      questsCompleted: 1,
+    });
+  });
+
+  it("counts stat-only training logs as active days", () => {
+    db = freshDb();
+    const now = new Date("2026-06-23T12:00:00.000Z");
+
+    db.prepare(
+      `insert into stat_awards (id,user_id,stat_key,delta,reason,source,source_id,occurred_at,created_at)
+       values (?,?,?,?,?,?,?,?,?)`,
+    ).run(
+      randomUUID(),
+      USER,
+      "strength",
+      1,
+      "message:body-training",
+      "discord",
+      "message-1",
+      now.toISOString(),
+      now.toISOString(),
+    );
+
+    const report = weeklyReport(db, USER, TZ, now);
+
+    expect(report.totals).toEqual({
+      messages: 0,
+      xp: 0,
+      questsCompleted: 0,
+      activeDays: 1,
+    });
+  });
 });
 
 describe("listAchievements", () => {
