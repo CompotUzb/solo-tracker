@@ -70,7 +70,7 @@ export function parseDailyProgress(content: string): ParsedDailyMetric[] {
 }
 
 export interface DailyQuestPublisher {
-  publish(input: { channelId: string; content: string; threadName: string }): Promise<{
+  publish(input: { channelId: string; content: string; threadName: string; threadContent: string }): Promise<{
     parentMessageId: string;
     threadId: string;
     threadName: string;
@@ -132,6 +132,26 @@ export function formatDailyQuestMessage(streakDayNumber: number, hunterRank: str
   ].join('\n');
 }
 
+export function formatDailyQuestThreadMessage(streakDayNumber: number): string {
+  return [
+    `SYSTEM THREAD ACTIVE — Day-${streakDayNumber}`,
+    '',
+    'Send your activity logs here.',
+    '',
+    'Examples:',
+    '- 30 pushups',
+    '- 3x10 situps',
+    '- 30 squats',
+    '- 10 pullups',
+    '- walked 2km',
+    '- 5000 steps',
+    '- studied 15m',
+    '- read 5 pages',
+    '',
+    'The System will automatically parse your logs and update the dashboard.',
+  ].join('\n');
+}
+
 function ensureWorkflowDay(
   db: Db,
   userId: string,
@@ -171,6 +191,7 @@ export async function createDailyQuestForDate(input: {
     channelId: input.channelId,
     content: formatDailyQuestMessage(streakDayNumber, input.hunterRank, tier),
     threadName: `Day-${streakDayNumber}`,
+    threadContent: formatDailyQuestThreadMessage(streakDayNumber),
   });
   input.db.prepare(
     `update daily_quest_days

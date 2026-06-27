@@ -87,13 +87,15 @@ export function createDailyQuestPublisher(client: Client): DailyQuestPublisher {
       const channel = (await client.channels.fetch(input.channelId)) as {
         send?: (content: string) => Promise<{
           id: string;
-          startThread?: (options: { name: string; autoArchiveDuration: 1440 }) => Promise<{ id: string; name: string }>;
+          startThread?: (options: { name: string; autoArchiveDuration: 1440 }) => Promise<{ id: string; name: string; send?: (content: string) => Promise<unknown> }>;
         }>;
       } | null;
       if (!channel || typeof channel.send !== 'function') throw new Error('daily quest channel is not text-based');
       const message = await channel.send(input.content);
       if (typeof message.startThread !== 'function') throw new Error('daily quest message cannot create a thread');
       const thread = await message.startThread({ name: input.threadName, autoArchiveDuration: 1440 });
+      if (typeof thread.send !== 'function') throw new Error('daily quest thread is not messageable');
+      await thread.send(input.threadContent);
       return { parentMessageId: message.id, threadId: thread.id, threadName: thread.name };
     },
   };

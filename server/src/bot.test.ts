@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Message } from 'discord.js';
-import { parseDailyCommand, parseSummaryCommand, toMessageLike, createDiscordClient } from './bot.js';
+import { parseDailyCommand, parseSummaryCommand, toMessageLike, createDiscordClient, createDailyQuestPublisher } from './bot.js';
 import { loadConfig } from './config.js';
 import { isMessageInTrackedBoundary, type BoundaryConfig } from './boundary.js';
 
@@ -98,5 +98,32 @@ describe('daily command parsing', () => {
     expect(parseDailyCommand('/daily evaluate')).toBe('evaluate');
     expect(parseDailyCommand('/daily thread')).toBe('thread');
     expect(parseDailyCommand('/daily unknown')).toBeNull();
+  });
+});
+
+describe('daily quest publisher', () => {
+  it('posts the checklist to the channel and only the short instruction message to the thread', async () => {
+    const threadSend = vi.fn(async () => ({ id: 'thread-message-1' }));
+    const startThread = vi.fn(async () => ({ id: 'thread-1', name: 'Day-1', send: threadSend }));
+    const channelSend = vi.fn(async () => ({ id: 'parent-message-1', startThread }));
+    const client = {
+      channels: {
+        fetch: vi.fn(async () => ({ send: channelSend })),
+      },
+    };
+
+    const result = await createDailyQuestPublisher(client as never).publish({
+      channelId: 'daily-channel',
+      content: 'SYSTEM DAILY QUEST — Day-1\nRequired:\n[ ] Push-ups: 0 / 30',
+      threadName: 'Day-1',
+      threadContent: 'SYSTEM THREAD ACTIVE — Day-1\n\nSend your activity logs here.',
+    });
+
+    expect(result).toEqual({ parentMessageId: 'parent-message-1', threadId: 'thread-1', threadName: 'Day-1' });
+    expect(channelSend).toHaveBeenCalledWith('SYSTEM DAILY QUEST — Day-1\nRequired:\n[ ] Push-ups: 0 / 30');
+    expect(startThread).toHaveBeenCalledWith({ name: 'Day-1', autoArchiveDuration: 1440 });
+    expect(threadSend).toHaveBeenCalledWith('SYSTEM THREAD ACTIVE — Day-1\n\nSend your activity logs here.');
+    expect(threadSend).not.toHaveBeenCalledWith(expect.stringContaining('Required:'));
+    expect(threadSend).not.toHaveBeenCalledWith(expect.stringContaining('[ ]'));
   });
 });

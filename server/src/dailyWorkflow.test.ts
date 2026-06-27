@@ -3,6 +3,7 @@ import { applyMigrations, openDatabase, type Db } from './db.js';
 import {
   createDailyQuestForDate,
   formatDailyQuestMessage,
+  formatDailyQuestThreadMessage,
   getDailyQuestTierForRank,
   parseDailyProgress,
   recordDailyThreadMessage,
@@ -64,6 +65,32 @@ describe('rank-based daily tier', () => {
     expect(message).toContain('Pull-ups: 0 / 10');
     expect(message).toContain('Cardio: 0 / 2 km OR 0 / 5000 steps');
   });
+
+  it('formats a short thread instruction message without the checklist', () => {
+    const message = formatDailyQuestThreadMessage(1);
+    expect(message).toBe(
+      [
+        'SYSTEM THREAD ACTIVE — Day-1',
+        '',
+        'Send your activity logs here.',
+        '',
+        'Examples:',
+        '- 30 pushups',
+        '- 3x10 situps',
+        '- 30 squats',
+        '- 10 pullups',
+        '- walked 2km',
+        '- 5000 steps',
+        '- studied 15m',
+        '- read 5 pages',
+        '',
+        'The System will automatically parse your logs and update the dashboard.',
+      ].join('\n'),
+    );
+    expect(message).not.toContain('Required:');
+    expect(message).not.toContain('Reward:');
+    expect(message).not.toContain('[ ]');
+  });
 });
 
 describe('daily Discord workflow', () => {
@@ -86,6 +113,12 @@ describe('daily Discord workflow', () => {
     expect(first.created).toBe(true);
     expect(second.created).toBe(false);
     expect(publish).toHaveBeenCalledOnce();
+    expect(publish).toHaveBeenCalledWith({
+      channelId: 'daily-channel',
+      content: expect.stringContaining('SYSTEM DAILY QUEST — Day-1'),
+      threadName: 'Day-1',
+      threadContent: formatDailyQuestThreadMessage(1),
+    });
     expect(first.quest.discordThreadName).toBe('Day-1');
     expect(first.quest.hunterRank).toBe('E-Rank');
     expect(first.quest.tierName).toBe('Beginner');
