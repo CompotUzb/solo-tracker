@@ -63,10 +63,12 @@ describe("rank-based daily tier", () => {
   });
 
   it("formats the exact E-Rank matrix with pull-ups", () => {
-    const message = formatDailyQuestMessage(1, "E-Rank", "e");
+    const message = formatDailyQuestMessage(1, "E-Rank", "e", "thread-1");
     expect(message).toBe(
       [
         "**📋 SYSTEM DAILY QUEST — Day-1**",
+        "",
+        "**Thread:** <#thread-1>",
         "",
         "**Rank:** `E-Rank`  **Tier:** `Beginner`  **Status:** `ACTIVE`",
         "",
@@ -107,11 +109,23 @@ describe("rank-based daily tier", () => {
 
 describe("daily Discord workflow", () => {
   it("creates one Discord message and thread per local date", async () => {
-    const publish = vi.fn(async () => ({
-      parentMessageId: "message-1",
-      threadId: "thread-1",
-      threadName: "Day-1",
-    }));
+    type PublishInput = {
+      channelId: string;
+      content: (threadId: string) => string;
+      threadName: string;
+      threadContent: string;
+    };
+    let publishInput: PublishInput | null = null;
+    const publish = vi.fn(async (input: PublishInput) => {
+      publishInput = input;
+      return {
+        parentMessageId: "message-1",
+        dailyQuestMessageId: "message-1",
+        threadId: "thread-1",
+        threadName: "Day-1",
+        threadIntroMessageId: "thread-message-1",
+      };
+    });
     const publisher: DailyQuestPublisher = { publish };
     const input = {
       db,
@@ -131,13 +145,27 @@ describe("daily Discord workflow", () => {
     expect(publish).toHaveBeenCalledOnce();
     expect(publish).toHaveBeenCalledWith({
       channelId: "daily-channel",
-      content: expect.stringContaining("SYSTEM DAILY QUEST — Day-1"),
+      content: expect.any(Function),
       threadName: "Day-1",
       threadContent: formatDailyQuestThreadMessage(1),
     });
+    expect(publishInput).not.toBeNull();
+    expect(publishInput!.content("thread-1")).toContain(
+      "**Thread:** <#thread-1>",
+    );
     expect(first.quest.discordThreadName).toBe("Day-1");
     expect(first.quest.hunterRank).toBe("E-Rank");
     expect(first.quest.tierName).toBe("Beginner");
+    expect(
+      db
+        .prepare(
+          "select discord_daily_quest_message_id,discord_thread_intro_message_id from daily_quest_days where user_id=? and local_date=?",
+        )
+        .get(USER, "2026-06-23"),
+    ).toEqual({
+      discord_daily_quest_message_id: "message-1",
+      discord_thread_intro_message_id: "thread-message-1",
+    });
   });
 
   it("accepts only the stored active thread and does not persist raw matches when disabled", async () => {
@@ -150,8 +178,10 @@ describe("daily Discord workflow", () => {
       publisher: {
         publish: async () => ({
           parentMessageId: "message-1",
+          dailyQuestMessageId: "message-1",
           threadId: "thread-1",
           threadName: "Day-1",
+          threadIntroMessageId: "thread-message-1",
         }),
       },
       now: "2026-06-23T01:00:00.000Z",
@@ -199,8 +229,10 @@ describe("daily Discord workflow", () => {
       publisher: {
         publish: async () => ({
           parentMessageId: "message-1",
+          dailyQuestMessageId: "message-1",
           threadId: "thread-1",
           threadName: "Day-1",
+          threadIntroMessageId: "thread-message-1",
         }),
       },
     });

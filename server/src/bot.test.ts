@@ -156,26 +156,29 @@ describe("daily command parsing", () => {
 });
 
 describe("daily quest publisher", () => {
-  it("posts the checklist to the channel and only the short instruction message to the thread", async () => {
+  it("creates a standalone thread, posts the intro there, then posts the checklist with the thread link", async () => {
     const threadSend = vi.fn(async () => ({ id: "thread-message-1" }));
-    const startThread = vi.fn(async () => ({
+    const threadCreate = vi.fn(async () => ({
       id: "thread-1",
       name: "Day-1",
       send: threadSend,
     }));
     const channelSend = vi.fn(async () => ({
       id: "parent-message-1",
-      startThread,
     }));
     const client = {
       channels: {
-        fetch: vi.fn(async () => ({ send: channelSend })),
+        fetch: vi.fn(async () => ({
+          send: channelSend,
+          threads: { create: threadCreate },
+        })),
       },
     };
 
     const result = await createDailyQuestPublisher(client as never).publish({
       channelId: "daily-channel",
-      content: "SYSTEM DAILY QUEST — Day-1\nRequired:\n[ ] Push-ups: 0 / 30",
+      content: (threadId) =>
+        `SYSTEM DAILY QUEST — Day-1\nThread: <#${threadId}>\nRequired:\n[ ] Push-ups: 0 / 30`,
       threadName: "Day-1",
       threadContent:
         "SYSTEM THREAD ACTIVE — Day-1\n\nSend your activity logs here.",
@@ -183,18 +186,21 @@ describe("daily quest publisher", () => {
 
     expect(result).toEqual({
       parentMessageId: "parent-message-1",
+      dailyQuestMessageId: "parent-message-1",
       threadId: "thread-1",
       threadName: "Day-1",
+      threadIntroMessageId: "thread-message-1",
     });
-    expect(channelSend).toHaveBeenCalledWith(
-      "SYSTEM DAILY QUEST — Day-1\nRequired:\n[ ] Push-ups: 0 / 30",
-    );
-    expect(startThread).toHaveBeenCalledWith({
+    expect(threadCreate).toHaveBeenCalledWith({
       name: "Day-1",
       autoArchiveDuration: 1440,
+      type: 11,
     });
     expect(threadSend).toHaveBeenCalledWith(
       "SYSTEM THREAD ACTIVE — Day-1\n\nSend your activity logs here.",
+    );
+    expect(channelSend).toHaveBeenCalledWith(
+      "SYSTEM DAILY QUEST — Day-1\nThread: <#thread-1>\nRequired:\n[ ] Push-ups: 0 / 30",
     );
     expect(threadSend).not.toHaveBeenCalledWith(
       expect.stringContaining("Required:"),

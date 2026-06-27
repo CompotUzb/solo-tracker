@@ -98,13 +98,15 @@ export function parseDailyProgress(content: string): ParsedDailyMetric[] {
 export interface DailyQuestPublisher {
   publish(input: {
     channelId: string;
-    content: string;
+    content: (threadId: string) => string;
     threadName: string;
     threadContent: string;
   }): Promise<{
     parentMessageId: string;
+    dailyQuestMessageId: string;
     threadId: string;
     threadName: string;
+    threadIntroMessageId: string | null;
   }>;
 }
 
@@ -155,6 +157,7 @@ export function formatDailyQuestMessage(
   streakDayNumber: number,
   hunterRank: string,
   tier: DailyTier,
+  threadId?: string,
 ): string {
   const steps = target(tier, "steps");
   const pages = target(tier, "mental_pages");
@@ -163,6 +166,8 @@ export function formatDailyQuestMessage(
   return [
     `**📋 SYSTEM DAILY QUEST — Day-${streakDayNumber}**`,
     "",
+    threadId == null ? null : `**Thread:** <#${threadId}>`,
+    threadId == null ? null : "",
     `**Rank:** \`${hunterRank}\`  **Tier:** \`${DAILY_TIER_NAMES[tier]}\`  **Status:** \`ACTIVE\``,
     "",
     "**Required**",
@@ -176,7 +181,9 @@ export function formatDailyQuestMessage(
     `**Reward:** \`+${DAILY_COMPLETE_XP} XP\` · stat gains · \`Daily Common Box\``,
     "",
     `Log progress inside the **Day-${streakDayNumber}** thread only.`,
-  ].join("\n");
+  ]
+    .filter((line): line is string => line != null)
+    .join("\n");
 }
 
 export function formatDailyQuestThreadMessage(streakDayNumber: number): string {
@@ -234,20 +241,33 @@ export async function createDailyQuestForDate(input: {
   const streakDayNumber = quest.streakDayNumber ?? 1;
   const published = await input.publisher.publish({
     channelId: input.channelId,
-    content: formatDailyQuestMessage(streakDayNumber, input.hunterRank, tier),
+    content: (threadId) =>
+      formatDailyQuestMessage(
+        streakDayNumber,
+        input.hunterRank,
+        tier,
+        threadId,
+      ),
     threadName: `Day-${streakDayNumber}`,
     threadContent: formatDailyQuestThreadMessage(streakDayNumber),
   });
   input.db
     .prepare(
       `update daily_quest_days
-        set discord_parent_message_id=?, discord_thread_id=?, discord_thread_name=?, updated_at=?
+        set discord_parent_message_id=?,
+            discord_daily_quest_message_id=?,
+            discord_thread_id=?,
+            discord_thread_name=?,
+            discord_thread_intro_message_id=?,
+            updated_at=?
       where user_id=? and local_date=?`,
     )
     .run(
       published.parentMessageId,
+      published.dailyQuestMessageId,
       published.threadId,
       published.threadName,
+      published.threadIntroMessageId,
       now,
       input.userId,
       input.localDate,

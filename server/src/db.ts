@@ -61,6 +61,18 @@ function applyColumnPatches(db: Db) {
   ensureColumn(
     db,
     "daily_quest_days",
+    "discord_daily_quest_message_id",
+    "discord_daily_quest_message_id text null",
+  );
+  ensureColumn(
+    db,
+    "daily_quest_days",
+    "discord_thread_intro_message_id",
+    "discord_thread_intro_message_id text null",
+  );
+  ensureColumn(
+    db,
+    "daily_quest_days",
     "discord_thread_id",
     "discord_thread_id text null",
   );
