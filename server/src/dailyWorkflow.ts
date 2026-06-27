@@ -152,6 +152,10 @@ function target(tier: DailyTier, key: DailyMetricKey): number | null {
   return DAILY_TIER_TARGETS[tier][key] ?? null;
 }
 
+function statLabel(statKey: string): string {
+  return statKey.charAt(0).toUpperCase() + statKey.slice(1);
+}
+
 export function formatDailyQuestMessage(
   streakDayNumber: number,
   hunterRank: string,
@@ -159,47 +163,74 @@ export function formatDailyQuestMessage(
 ): string {
   const steps = target(tier, "steps");
   const pages = target(tier, "mental_pages");
-  const cardio = `[ ] Cardio: 0 / ${target(tier, "cardio_km")} km${steps == null ? "" : ` OR 0 / ${steps} steps`}`;
-  const mental = `[ ] Mental Focus: 0 / ${target(tier, "mental_minutes")} min${pages == null ? "" : ` OR 0 / ${pages} pages`}`;
+  const cardio = `- **Cardio:** \`0 / ${target(tier, "cardio_km")} km\`${steps == null ? "" : ` OR \`0 / ${steps} steps\``}`;
+  const mental = `- **Mental Focus:** \`0 / ${target(tier, "mental_minutes")} min\`${pages == null ? "" : ` OR \`0 / ${pages} pages\``}`;
   return [
-    `SYSTEM DAILY QUEST — Day-${streakDayNumber}`,
-    `Rank: ${hunterRank}`,
-    `Tier: ${DAILY_TIER_NAMES[tier]}`,
+    `** SYSTEM DAILY QUEST — Day-${streakDayNumber}**`,
     "",
-    "Required:",
-    `[ ] Push-ups: 0 / ${target(tier, "pushups")}`,
-    `[ ] Sit-ups: 0 / ${target(tier, "situps")}`,
-    `[ ] Squats: 0 / ${target(tier, "squats")}`,
-    `[ ] Pull-ups: 0 / ${target(tier, "pullups")}`,
+    `**Rank:** \`${hunterRank}\``,
+    `**Tier:** \`${DAILY_TIER_NAMES[tier]}\``,
+    "**Status:** `ACTIVE`",
+    "",
+    "---",
+    "",
+    "**Required**",
+    "",
+    `- **Push-ups:** \`0 / ${target(tier, "pushups")} reps\``,
+    `- **Sit-ups:** \`0 / ${target(tier, "situps")} reps\``,
+    `- **Squats:** \`0 / ${target(tier, "squats")} reps\``,
+    `- **Pull-ups:** \`0 / ${target(tier, "pullups")} reps\``,
     cardio,
     mental,
     "",
-    "Reward:",
-    `+${DAILY_COMPLETE_XP} XP`,
-    `Automatic stat gains (${DAILY_COMPLETION_STAT_GAINS.map((gain) => `${gain.statKey} +${gain.delta}`).join(", ")})`,
-    "Daily Common Box",
+    "---",
     "",
-    "Instructions:",
-    "Log your progress inside this thread only.",
-    `Examples: ${target(tier, "pushups")} pushups, 3x10 situps, walked ${target(tier, "cardio_km")}km, studied ${target(tier, "mental_minutes")}m${pages == null ? "" : `, read ${pages} pages`}`,
+    "**Reward**",
+    "",
+    `- \`+${DAILY_COMPLETE_XP} XP\``,
+    "- Automatic stat gains:",
+    ...DAILY_COMPLETION_STAT_GAINS.map(
+      (gain) => `  - ${statLabel(gain.statKey)} \`+${gain.delta}\``,
+    ),
+    "- `Daily Common Box`",
+    "",
+    "---",
+    "",
+    "**Instructions**",
+    "",
+    `Log your progress inside the **Day-${streakDayNumber}** thread only.`,
+    "",
+    "Examples:",
+    "```txt",
+    `${target(tier, "pushups")} pushups`,
+    "3x10 situps",
+    `${target(tier, "squats")} squats`,
+    `${target(tier, "pullups")} pullups`,
+    `walked ${target(tier, "cardio_km")}km`,
+    steps == null ? null : `${steps} steps`,
+    `studied ${target(tier, "mental_minutes")}m`,
+    pages == null ? null : `read ${pages} pages`,
+    "```",
   ].join("\n");
 }
 
 export function formatDailyQuestThreadMessage(streakDayNumber: number): string {
   return [
-    `SYSTEM THREAD ACTIVE — Day-${streakDayNumber}`,
+    `** SYSTEM THREAD ACTIVE — Day-${streakDayNumber}**`,
     "",
     "Send your activity logs here.",
     "",
-    "Examples:",
-    "- 30 pushups",
-    "- 3x10 situps",
-    "- 30 squats",
-    "- 10 pullups",
-    "- walked 2km",
-    "- 5000 steps",
-    "- studied 15m",
-    "- read 5 pages",
+    "**Examples**",
+    "```txt",
+    "30 pushups",
+    "3x10 situps",
+    "30 squats",
+    "10 pullups",
+    "walked 2km",
+    "5000 steps",
+    "studied 15m",
+    "read 5 pages",
+    "```",
     "",
     "The System will automatically parse your logs and update the dashboard.",
   ].join("\n");

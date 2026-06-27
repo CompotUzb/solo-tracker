@@ -77,9 +77,13 @@ describe("/quest add", () => {
     expect(() =>
       addQuest(db, { userId: USER, title: "  ", questType: "easy" }),
     ).toThrow(/title is required/);
-    // @ts-expect-error invalid type on purpose
     expect(() =>
-      addQuest(db, { userId: USER, title: "x", questType: "mega" }),
+      addQuest(db, {
+        userId: USER,
+        title: "x",
+        // @ts-expect-error invalid type on purpose
+        questType: "mega",
+      }),
     ).toThrow(/unknown quest type/);
   });
 

@@ -64,35 +64,43 @@ describe("rank-based daily tier", () => {
 
   it("formats the exact E-Rank matrix with pull-ups", () => {
     const message = formatDailyQuestMessage(1, "E-Rank", "e");
-    expect(message).toContain("Rank: E-Rank");
-    expect(message).toContain("Tier: Beginner");
-    expect(message).toContain("Pull-ups: 0 / 10");
-    expect(message).toContain("Cardio: 0 / 2 km OR 0 / 5000 steps");
+    expect(message).toContain("** SYSTEM DAILY QUEST — Day-1**");
+    expect(message).toContain("**Rank:** `E-Rank`");
+    expect(message).toContain("**Tier:** `Beginner`");
+    expect(message).toContain("**Status:** `ACTIVE`");
+    expect(message).toContain("- **Pull-ups:** `0 / 10 reps`");
+    expect(message).toContain(
+      "- **Cardio:** `0 / 2 km` OR `0 / 5000 steps`",
+    );
+    expect(message).toContain("  - Strength `+2`");
+    expect(message).toContain("```txt\n30 pushups\n3x10 situps");
   });
 
   it("formats a short thread instruction message without the checklist", () => {
     const message = formatDailyQuestThreadMessage(1);
     expect(message).toBe(
       [
-        "SYSTEM THREAD ACTIVE — Day-1",
+        "** SYSTEM THREAD ACTIVE — Day-1**",
         "",
         "Send your activity logs here.",
         "",
-        "Examples:",
-        "- 30 pushups",
-        "- 3x10 situps",
-        "- 30 squats",
-        "- 10 pullups",
-        "- walked 2km",
-        "- 5000 steps",
-        "- studied 15m",
-        "- read 5 pages",
+        "**Examples**",
+        "```txt",
+        "30 pushups",
+        "3x10 situps",
+        "30 squats",
+        "10 pullups",
+        "walked 2km",
+        "5000 steps",
+        "studied 15m",
+        "read 5 pages",
+        "```",
         "",
         "The System will automatically parse your logs and update the dashboard.",
       ].join("\n"),
     );
-    expect(message).not.toContain("Required:");
-    expect(message).not.toContain("Reward:");
+    expect(message).not.toContain("**Required**");
+    expect(message).not.toContain("**Reward**");
     expect(message).not.toContain("[ ]");
   });
 });
