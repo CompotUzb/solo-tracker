@@ -196,6 +196,7 @@ export function createDiscordClient(
     );
   });
   client.on(Events.MessageCreate, (message) => {
+    const like = toMessageLike(message);
     const inCommandsChannel = config.commandsChannelId === message.channelId;
     const summaryCommand = inCommandsChannel
       ? parseSummaryCommand(message.content)
@@ -217,9 +218,9 @@ export function createDiscordClient(
       !message.webhookId &&
       !message.system
     ) {
-      options.onDailyQuestMessage?.(message);
+      if (like.parentChannelId) options.onDailyQuestMessage?.(message);
     }
-    if (!isMessageInTrackedBoundary(toMessageLike(message), boundary)) return;
+    if (!isMessageInTrackedBoundary(like, boundary)) return;
     const input = toRawMessageInput(message, config);
     const stored = store(input);
     options.onRawMessageStored?.(input, stored);

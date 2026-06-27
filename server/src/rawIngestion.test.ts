@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Message } from "discord.js";
 import { createDiscordClient, toRawMessageInput } from "./bot.js";
 import type { BoundaryConfig } from "./boundary.js";
@@ -6,7 +6,7 @@ import type { AppConfig } from "./config.js";
 
 const boundary: BoundaryConfig = {
   trackedGuildId: "guild-1",
-  trackedChannelIds: ["channel-1"],
+  trackedChannelIds: ["channel-1", "daily-quests"],
 };
 
 function fakeMessage(overrides: {
@@ -44,7 +44,7 @@ const config = {
   discordToken: "token",
   discordClientId: "client-id",
   trackedGuildId: "guild-1",
-  trackedChannelIds: ["channel-1"],
+  trackedChannelIds: ["channel-1", "daily-quests"],
   channelCategories: {},
   commandsChannelId: null,
   dailyQuestsChannelId: null,
@@ -160,6 +160,66 @@ describe("raw Discord message ingestion", () => {
       input: { messageId: "tracked", channelId: "channel-1" },
       result: true,
     });
+    client.destroy();
+  });
+
+  it("routes Daily Quest parsing only for thread messages while still storing channel logs", () => {
+    const stored: unknown[] = [];
+    const onDailyQuestMessage = vi.fn();
+    const client = createDiscordClient(config, boundary, {
+      storeRawMessage: (input) => {
+        stored.push(input);
+        return true;
+      },
+      onDailyQuestMessage,
+    });
+    const emitMessageCreate = (message: Message) =>
+      (client as { emit(event: string, ...args: unknown[]): boolean }).emit(
+        "messageCreate",
+        message,
+      );
+
+    emitMessageCreate(
+      fakeMessage({
+        id: "body-log",
+        guildId: "guild-1",
+        channelId: "channel-1",
+        content: "30 pushups",
+      }),
+    );
+    emitMessageCreate(
+      fakeMessage({
+        id: "daily-thread-log",
+        guildId: "guild-1",
+        channelId: "thread-1",
+        channel: {
+          id: "thread-1",
+          parentId: "daily-quests",
+          isThread: () => true,
+          name: "Day-1",
+        },
+        content: "30 pushups",
+      }),
+    );
+
+    expect(stored).toHaveLength(2);
+    expect(stored).toEqual([
+      expect.objectContaining({
+        messageId: "body-log",
+        channelId: "channel-1",
+        threadId: null,
+      }),
+      expect.objectContaining({
+        messageId: "daily-thread-log",
+        channelId: "thread-1",
+        parentChannelId: "daily-quests",
+        threadId: "thread-1",
+      }),
+    ]);
+    expect(onDailyQuestMessage).toHaveBeenCalledOnce();
+    expect(onDailyQuestMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "daily-thread-log" }),
+    );
     client.destroy();
   });
 });
