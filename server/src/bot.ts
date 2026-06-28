@@ -7,6 +7,7 @@ import {
 } from "./boundary.js";
 import { persistRawMessage, type RawDiscordMessageInput } from "./db.js";
 import type { DailyQuestPublisher } from "./dailyWorkflow.js";
+import type { MainCommand } from "./mainQuestCommands.js";
 
 export type SummaryCommandKind = "today" | "week";
 export type DailyCommandKind = "show" | "create" | "evaluate" | "thread";
@@ -38,6 +39,34 @@ export function parseDailyCommand(
     return "evaluate";
   if (normalized === "/daily thread" || normalized === "!daily thread")
     return "thread";
+  return null;
+}
+
+export function parseMainCommand(
+  content: string | null | undefined,
+): MainCommand | null {
+  const trimmed = (content ?? "").trim();
+  const normalized = trimmed.toLowerCase().replace(/\s+/g, " ");
+  if (!normalized.startsWith("/main")) return null;
+
+  const suggestPrefix = "/main suggest ";
+  if (normalized.startsWith(suggestPrefix)) {
+    return { kind: "suggest", goal: trimmed.slice(suggestPrefix.length).trim() };
+  }
+  if (normalized === "/main accept") return { kind: "accept" };
+  if (normalized === "/main reject") return { kind: "reject" };
+  if (normalized === "/main list") return { kind: "list" };
+
+  const progress = trimmed.match(/^\/main\s+progress\s+(\S+)\s+(\d+)$/i);
+  if (progress) {
+    return {
+      kind: "progress",
+      questId: progress[1],
+      amount: Number(progress[2]),
+    };
+  }
+  const complete = trimmed.match(/^\/main\s+complete\s+(\S+)$/i);
+  if (complete) return { kind: "complete", questId: complete[1] };
   return null;
 }
 
@@ -179,6 +208,7 @@ export interface DiscordClientOptions {
   onRawMessageStored?: (input: RawDiscordMessageInput, stored: unknown) => void;
   onSummaryCommand?: (kind: SummaryCommandKind, message: Message) => unknown;
   onDailyCommand?: (kind: DailyCommandKind, message: Message) => unknown;
+  onMainCommand?: (command: MainCommand, message: Message) => unknown;
   onDailyQuestMessage?: (message: Message) => unknown;
 }
 
@@ -219,6 +249,13 @@ export function createDiscordClient(
       : null;
     if (dailyCommand) {
       options.onDailyCommand?.(dailyCommand, message);
+      return;
+    }
+    const mainCommand = inCommandsChannel
+      ? parseMainCommand(message.content)
+      : null;
+    if (mainCommand) {
+      options.onMainCommand?.(mainCommand, message);
       return;
     }
     if (

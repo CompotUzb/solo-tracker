@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Message } from "discord.js";
 import {
   parseDailyCommand,
+  parseMainCommand,
   parseSummaryCommand,
   toMessageLike,
   createDiscordClient,
@@ -152,6 +153,76 @@ describe("daily command parsing", () => {
     expect(parseDailyCommand("/daily evaluate")).toBe("evaluate");
     expect(parseDailyCommand("/daily thread")).toBe("thread");
     expect(parseDailyCommand("/daily unknown")).toBeNull();
+  });
+});
+
+describe("main command parsing", () => {
+  it("parses Main Quest MVP commands", () => {
+    expect(parseMainCommand("/main suggest prepare for probability exam")).toEqual({
+      kind: "suggest",
+      goal: "prepare for probability exam",
+    });
+    expect(parseMainCommand("/main accept")).toEqual({ kind: "accept" });
+    expect(parseMainCommand("/main reject")).toEqual({ kind: "reject" });
+    expect(parseMainCommand("/main list")).toEqual({ kind: "list" });
+    expect(parseMainCommand("/main progress quest-1 3")).toEqual({
+      kind: "progress",
+      questId: "quest-1",
+      amount: 3,
+    });
+    expect(parseMainCommand("/main complete quest-1")).toEqual({
+      kind: "complete",
+      questId: "quest-1",
+    });
+    expect(parseMainCommand("/main unknown")).toBeNull();
+  });
+
+  it("dispatches main commands only from the configured commands channel", () => {
+    const config = loadConfig({
+      DISCORD_TOKEN: "fake",
+      DISCORD_CLIENT_ID: "client",
+      TRACKED_GUILD_ID: "guild-1",
+      TRACKED_CHANNEL_IDS: "channel-1",
+      COMMANDS_CHANNEL_ID: "commands",
+      DATABASE_PATH: ":memory:",
+      SKIP_DISCORD_LOGIN: "true",
+    });
+    const onMainCommand = vi.fn();
+    const client = createDiscordClient(config, boundary, {
+      storeRawMessage: vi.fn(),
+      onMainCommand,
+    });
+
+    const emitMessage = (
+      client as unknown as {
+        emit: (event: string, message: unknown) => boolean;
+      }
+    ).emit.bind(client);
+    emitMessage(
+      "messageCreate",
+      fakeMessage({
+        guildId: "guild-1",
+        channelId: "commands",
+        channel: { id: "commands" },
+        content: "/main suggest finish deployment",
+      }),
+    );
+    emitMessage(
+      "messageCreate",
+      fakeMessage({
+        guildId: "guild-1",
+        channelId: "thread-1",
+        channel: { id: "thread-1", parentId: "channel-1" },
+        content: "/main suggest ignored in thread",
+      }),
+    );
+
+    expect(onMainCommand).toHaveBeenCalledOnce();
+    expect(onMainCommand).toHaveBeenCalledWith(
+      { kind: "suggest", goal: "finish deployment" },
+      expect.anything(),
+    );
+    client.destroy();
   });
 });
 

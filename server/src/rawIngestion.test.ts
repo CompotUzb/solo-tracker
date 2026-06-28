@@ -58,6 +58,9 @@ const config = {
   dailyQuestCreateTime: "06:00",
   dailyEvaluationTime: "00:00",
   dailyQuestTierOverride: null,
+  aiMainQuestEnabled: false,
+  openAiApiKey: "",
+  openAiModel: "gpt-4o",
 } satisfies AppConfig;
 
 describe("raw Discord message ingestion", () => {

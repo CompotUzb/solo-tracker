@@ -27,6 +27,8 @@ import {
   recordDailyThreadMessage,
   type DailyQuestPublisher,
 } from "./dailyWorkflow.js";
+import { suggestMainQuestDraft } from "./mainQuestAi.js";
+import { createMainQuestCommandHandler } from "./mainQuestCommands.js";
 
 async function main() {
   const config = loadConfig();
@@ -75,6 +77,22 @@ async function main() {
     discordStatus: () => discordStatus,
   });
   broadcast = api.broadcast;
+  const mainQuestCommands = createMainQuestCommandHandler({
+    db,
+    notifier,
+    ai: {
+      suggest: (goal) =>
+        suggestMainQuestDraft({
+          goal,
+          config: {
+            enabled: config.aiMainQuestEnabled,
+            apiKey: config.openAiApiKey,
+            model: config.openAiModel,
+          },
+        }),
+    },
+    onChanged: (event, data) => api.broadcast(event, data),
+  });
 
   const publishSummary = (kind: "today" | "week") => {
     if (kind === "today") {
@@ -306,6 +324,16 @@ async function main() {
         } catch (error) {
           await message.reply(
             `Daily command failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      },
+      async onMainCommand(command, message) {
+        try {
+          const reply = await mainQuestCommands.handle(command, SEED_USER_ID);
+          await message.reply(reply);
+        } catch (error) {
+          await message.reply(
+            `Main Quest command failed: ${error instanceof Error ? error.message : String(error)}`,
           );
         }
       },

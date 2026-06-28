@@ -76,6 +76,9 @@ const envSchema = z.object({
   DAILY_QUEST_CREATE_TIME: localTime.default("06:00"),
   DAILY_EVALUATION_TIME: localTime.default("00:00"),
   DAILY_QUEST_TIER_OVERRIDE: z.coerce.number().int().min(1).max(3).optional(),
+  AI_MAIN_QUEST_ENABLED: envBoolean.default(false),
+  OPENAI_API_KEY: z.string().optional().default(""),
+  OPENAI_MODEL: z.string().default("gpt-4o"),
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
@@ -143,6 +146,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
       parsed.NODE_ENV === "production"
         ? null
         : (parsed.DAILY_QUEST_TIER_OVERRIDE ?? null),
+    aiMainQuestEnabled: parsed.AI_MAIN_QUEST_ENABLED,
+    openAiApiKey: parsed.OPENAI_API_KEY.trim(),
+    openAiModel: parsed.OPENAI_MODEL,
     skipDiscordLogin: parsed.SKIP_DISCORD_LOGIN,
   };
 }

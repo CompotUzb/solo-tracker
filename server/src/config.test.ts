@@ -113,6 +113,23 @@ describe("loadConfig", () => {
     expect(config.dailyQuestTierOverride).toBeNull();
   });
 
+  it("keeps AI Main Quest generation disabled by default and opt-in by env", () => {
+    const disabled = loadConfig(baseEnv);
+    expect(disabled.aiMainQuestEnabled).toBe(false);
+    expect(disabled.openAiApiKey).toBe("");
+    expect(disabled.openAiModel).toBe("gpt-4o");
+
+    const enabled = loadConfig({
+      ...baseEnv,
+      AI_MAIN_QUEST_ENABLED: "true",
+      OPENAI_API_KEY: "  test-key  ",
+      OPENAI_MODEL: "gpt-test",
+    });
+    expect(enabled.aiMainQuestEnabled).toBe(true);
+    expect(enabled.openAiApiKey).toBe("test-key");
+    expect(enabled.openAiModel).toBe("gpt-test");
+  });
+
   it("omits secrets from the public config surface", () => {
     const config = loadConfig({
       ...baseEnv,
@@ -125,5 +142,6 @@ describe("loadConfig", () => {
     expect(serialized).not.toContain(baseEnv.DISCORD_CLIENT_ID);
     expect(safe).not.toHaveProperty("discordToken");
     expect(safe).not.toHaveProperty("discordClientId");
+    expect(safe).not.toHaveProperty("openAiApiKey");
   });
 });
