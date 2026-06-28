@@ -135,10 +135,11 @@ export interface Summary {
 }
 
 export type QuestType = "easy" | "normal" | "hard" | "boss" | "raid";
-export type QuestStatus = "active" | "completed" | "abandoned";
+export type QuestStatus = "active" | "completed" | "archived" | "abandoned";
 
 export interface Quest {
   id: string;
+  displayId?: string;
   userId: string;
   title: string;
   description: string | null;

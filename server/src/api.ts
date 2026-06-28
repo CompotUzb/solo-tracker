@@ -43,6 +43,10 @@ import {
   completeMainQuest,
   progressMainQuest,
 } from "./mainQuestLifecycle.js";
+import {
+  resolveMainQuestId,
+  withMainQuestDisplayIds,
+} from "./mainQuestIds.js";
 
 export type DiscordStatus = "connected" | "disconnected" | "skipped";
 
@@ -339,7 +343,10 @@ export function createApi({
     "/api/main-quests",
     async (req) => {
       const userId = req.query.userId ?? DEFAULT_USER_ID;
-      return { userId, quests: listMainQuests(db, userId) };
+      return {
+        userId,
+        quests: withMainQuestDisplayIds(db, userId, listMainQuests(db, userId)),
+      };
     },
   );
 
@@ -376,8 +383,9 @@ export function createApi({
         return { error: "invalid_progress", details: parsed.error.flatten() };
       }
       const userId = parsed.data.userId ?? DEFAULT_USER_ID;
+      const questId = resolveMainQuestId(db, userId, req.params.id);
       const result = progressMainQuest(db, {
-        questId: req.params.id,
+        questId,
         userId,
         progressCount: parsed.data.amount,
         notifier,
@@ -405,8 +413,9 @@ export function createApi({
         return { error: "invalid_request", details: parsed.error.flatten() };
       }
       const userId = parsed.data.userId ?? DEFAULT_USER_ID;
+      const questId = resolveMainQuestId(db, userId, req.params.id);
       const result = completeMainQuest(db, {
-        questId: req.params.id,
+        questId,
         userId,
         notifier,
       }, { emit: broadcast });
@@ -431,7 +440,8 @@ export function createApi({
         return { error: "invalid_request", details: parsed.error.flatten() };
       }
       const userId = parsed.data.userId ?? DEFAULT_USER_ID;
-      const quest = archiveMainQuest(db, { questId: req.params.id, userId }, {
+      const questId = resolveMainQuestId(db, userId, req.params.id);
+      const quest = archiveMainQuest(db, { questId, userId }, {
         emit: broadcast,
       });
       return { quest };
@@ -443,7 +453,10 @@ export function createApi({
     async (req) => {
       const userId = req.query.userId ?? DEFAULT_USER_ID;
       const status = req.query.status as QuestStatus | undefined;
-      return { userId, quests: listQuests(db, userId, status) };
+      return {
+        userId,
+        quests: withMainQuestDisplayIds(db, userId, listQuests(db, userId, status)),
+      };
     },
   );
 

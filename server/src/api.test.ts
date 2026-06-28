@@ -98,10 +98,14 @@ describe("API", () => {
 
     const list = await api.app.inject({ method: "GET", url: "/api/main-quests" });
     expect(list.json().quests).toHaveLength(1);
+    expect(list.json().quests[0]).toMatchObject({ displayId: "MQ-1" });
+
+    const genericList = await api.app.inject({ method: "GET", url: "/api/quests" });
+    expect(genericList.json().quests[0]).toMatchObject({ displayId: "MQ-1" });
 
     const autoComplete = await api.app.inject({
       method: "PATCH",
-      url: `/api/main-quests/${questId}/progress`,
+      url: "/api/main-quests/MQ-1/progress",
       payload: { amount: 7 },
     });
     expect(autoComplete.statusCode).toBe(200);
@@ -112,7 +116,7 @@ describe("API", () => {
 
     const again = await api.app.inject({
       method: "POST",
-      url: `/api/main-quests/${questId}/complete`,
+      url: "/api/main-quests/1/complete",
       payload: {},
     });
     expect(again.json()).toMatchObject({ xpAwarded: 0, alreadyCompleted: true });

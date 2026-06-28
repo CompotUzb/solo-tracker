@@ -32,7 +32,6 @@ describe("AI Main Quest generation", () => {
           progress_unit: "study sessions",
           reward_xp: 9999,
           reward_stats: { Intelligence: 99 },
-          suggested_steps: ["Review fundamentals"],
           confidence: 0.9,
         },
         "I want to prepare probability and statistics for my exam",
@@ -48,7 +47,7 @@ describe("AI Main Quest generation", () => {
     });
   });
 
-  it("replaces vague percent targets and fluffy exam steps with measurable work", () => {
+  it("replaces vague percent targets and fluffy descriptions with measurable work", () => {
     const draft = normalizeMainQuestDraft(
       {
         title: "Defeat the Engineering Fundamentals Final Exam",
@@ -56,11 +55,6 @@ describe("AI Main Quest generation", () => {
         difficulty: "hard",
         progress_target: 100,
         progress_unit: "percent",
-        suggested_steps: [
-          "Attend all lectures",
-          "Form a study group",
-          "Stay motivated",
-        ],
         confidence: 0.8,
       },
       "I want to prepare for engineering fundamentals final exam",
@@ -71,13 +65,6 @@ describe("AI Main Quest generation", () => {
     expect(draft.description).toBe(
       "Prepare through structured review, practice problems, mock exams, and weak-topic correction.",
     );
-    expect(draft.suggestedSteps).toEqual([
-      "Review all core lecture topics.",
-      "Complete 50 practice problems.",
-      "Complete 3 mock exams.",
-      "Summarize weak topics after each session.",
-      "Rework mistakes until they are understood.",
-    ]);
   });
 
   it("calls OpenAI with a JSON-only Main Quest prompt and parses the draft", async () => {
@@ -96,7 +83,6 @@ describe("AI Main Quest generation", () => {
                 difficulty: "boss",
                 progress_target: 5,
                 progress_unit: "deployment milestones",
-                suggested_steps: ["Build Docker image", "Verify health checks"],
                 confidence: 0.88,
               }),
             },
@@ -122,6 +108,8 @@ describe("AI Main Quest generation", () => {
       }),
     );
     expect(requestBody).toContain("never use percent/percentage/100 percent");
+    expect(requestBody).toContain("Do not generate steps");
+    expect(requestBody).not.toContain("suggested_steps");
     expect(requestBody).toContain("Do not mark progress, complete quests, award XP");
     expect(result).toEqual({
       ok: true,

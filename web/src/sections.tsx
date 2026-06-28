@@ -2,7 +2,6 @@ import type { AsyncState } from "./api.js";
 import {
   formatDate,
   formatNumber,
-  mainQuestNextSteps,
   mainQuestObjective,
   mainQuestProgressUnit,
   mainQuestRewardSummary,
@@ -322,7 +321,6 @@ function MainQuestList({
         const percent = ratioPercent(quest.progressCount, quest.targetCount);
         const objective = mainQuestObjective(quest);
         const progressUnit = mainQuestProgressUnit(quest);
-        const steps = mainQuestNextSteps(quest);
         return (
           <li key={quest.id} className="quest main-quest">
             <div className="quest-head">
@@ -330,6 +328,10 @@ function MainQuestList({
               <Badge tone={QUEST_TONES[quest.questType] ?? "normal"}>
                 {quest.questType}
               </Badge>
+            </div>
+            <div className="main-quest-id">
+              <span className="quest-label">ID</span>
+              <span className="muted">{quest.displayId ?? quest.id}</span>
             </div>
             {objective ? (
               <div className="main-quest-objective">
@@ -349,16 +351,6 @@ function MainQuestList({
               <span className="quest-label">Reward</span>
               <span className="muted">{mainQuestRewardSummary(quest)}</span>
             </div>
-            {steps.length ? (
-              <div className="main-quest-steps">
-                <span className="quest-label">Next steps</span>
-                <ul>
-                  {steps.map((step) => (
-                    <li key={step}>{step}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
           </li>
         );
       })}

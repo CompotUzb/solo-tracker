@@ -6,6 +6,11 @@ import type {
   MainQuestSuggestionResult,
 } from "./mainQuestAi.js";
 import {
+  mainQuestDisplayId,
+  resolveMainQuestId,
+  withMainQuestDisplayIds,
+} from "./mainQuestIds.js";
+import {
   archiveMainQuest,
   completeMainQuest,
   progressMainQuest,
@@ -37,6 +42,7 @@ function statSummary(stats: Record<string, number>): string {
 export function formatMainQuestDraft(draft: MainQuestDraft): string {
   return [
     "**Proposed Main Quest**",
+    "**ID:** Draft",
     `**Title:** ${draft.title}`,
     `**Difficulty:** ${draft.difficulty}`,
     `**Target:** ${draft.progressTarget} ${draft.progressUnit}`,
@@ -44,9 +50,6 @@ export function formatMainQuestDraft(draft: MainQuestDraft): string {
     "",
     "**Description**",
     draft.description,
-    "",
-    "**Steps**",
-    ...draft.suggestedSteps.map((step) => `- ${step}`),
     "",
     "Confirm with `/main accept` or reject with `/main reject`.",
   ].join("\n");
@@ -60,10 +63,14 @@ function draftDescription(draft: MainQuestDraft): string {
   return [
     description,
     `Unit: ${draft.progressUnit}`,
-    "",
-    "Suggested steps:",
-    ...draft.suggestedSteps.map((step) => `- ${step}`),
   ].join("\n");
+}
+
+function questProgressUnit(description: string | null): string {
+  const unitLine = description
+    ?.split(/\r?\n/)
+    .find((line) => line.trim().toLowerCase().startsWith("unit:"));
+  return unitLine?.replace(/^unit:\s*/i, "").trim() ?? "";
 }
 
 export function createMainQuestCommandHandler(input: {
@@ -100,32 +107,62 @@ export function createMainQuestCommandHandler(input: {
           targetCount: draft.progressTarget,
         });
         drafts.delete(userId);
+        const displayId = mainQuestDisplayId(input.db, userId, quest.id);
         input.onChanged?.("main_quest.created", { userId, quest });
         input.onChanged?.("quest.updated", {
           action: "created",
           userId,
           quest,
         });
-        return `Main Quest created: ${quest.title}\nID: ${quest.id}`;
+        return [
+          "Main Quest accepted.",
+          "",
+          `ID: ${displayId}`,
+          `Title: ${quest.title}`,
+          `Progress: ${quest.progressCount} / ${quest.targetCount} ${draft.progressUnit}`,
+          "",
+          "Use:",
+          `/main progress ${displayId} 1`,
+          `/main complete ${displayId}`,
+          `/main archive ${displayId}`,
+        ].join("\n");
       }
 
       if (command.kind === "list") {
-        const quests = listMainQuests(input.db, userId).filter(
-          (quest) => quest.status === "active",
+        const quests = withMainQuestDisplayIds(
+          input.db,
+          userId,
+          listMainQuests(input.db, userId).filter(
+            (quest) => quest.status === "active",
+          ),
         );
         if (quests.length === 0) return "No active Main Quests.";
         return [
-          "**Main Quests**",
-          ...quests.map(
-            (quest) =>
-              `- ${quest.id} · ${quest.title} · ${quest.progressCount}/${quest.targetCount} · ${quest.questType}`,
-          ),
+          "**Active Main Quests**",
+          ...quests.map((quest) => {
+            const unit = questProgressUnit(quest.description);
+            return [
+              "",
+              `${quest.displayId} — ${quest.title}`,
+              `Difficulty: ${quest.questType}`,
+              `Progress: ${quest.progressCount} / ${quest.targetCount}${
+                unit ? ` ${unit}` : ""
+              }`,
+              `Reward: +${quest.xpReward} XP`,
+              "",
+              "Commands:",
+              `- /main progress ${quest.displayId} 1`,
+              `- /main complete ${quest.displayId}`,
+              `- /main archive ${quest.displayId}`,
+            ].join("\n");
+          }),
         ].join("\n");
       }
 
       if (command.kind === "progress") {
+        const questId = resolveMainQuestId(input.db, userId, command.questId);
         const result = progressMainQuest(input.db, {
-          questId: command.questId,
+          questId,
           userId,
           progressCount: command.amount,
           notifier: input.notifier,
@@ -138,14 +175,16 @@ export function createMainQuestCommandHandler(input: {
       }
 
       if (command.kind === "archive") {
-        const quest = archiveMainQuest(input.db, { questId: command.questId, userId }, {
+        const questId = resolveMainQuestId(input.db, userId, command.questId);
+        const quest = archiveMainQuest(input.db, { questId, userId }, {
           emit: input.onChanged,
         });
         return `Main Quest archived: ${quest.title}`;
       }
 
+      const questId = resolveMainQuestId(input.db, userId, command.questId);
       const result = completeMainQuest(input.db, {
-        questId: command.questId,
+        questId,
         userId,
         notifier: input.notifier,
       }, { emit: input.onChanged });

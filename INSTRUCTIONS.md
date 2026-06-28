@@ -200,18 +200,34 @@ curl -X POST http://127.0.0.1:3333/api/quests \
 curl -X POST http://127.0.0.1:3333/api/quests/<QUEST_ID>/complete -d '{}'
 ```
 
-Completing a quest awards XP (easy 10 → raid 400), builds **Discipline**, and can trigger a
+Completing a quest awards XP (easy 10 → raid 1500), builds **Discipline**, and can trigger a
 **level-up** and **achievement** notification. Active quests appear on the **Daily Quests**
 and **Main Quests** cards.
 
-### Discord commands (in `#commands` only)
+### Discord commands
 
 Type these in your `COMMANDS_CHANNEL_ID` channel:
 
 - `!summary today` or `/summary today` → publishes a **daily summary** notification.
 - `!summary week`, `/summary week`, or `/report weekly` → publishes a **weekly summary**.
+- `/daily` → show today's Daily Quest status.
+- `/daily create` → create/post today's Daily Quest if it does not already exist.
+- `/daily evaluate` → evaluate unfinished past Daily Quest days.
+- `/daily thread` → show the active Day-N thread and metric progress.
+- `/main suggest <natural goal>` → ask AI to draft a Main Quest from a larger goal.
+- `/main accept` → create the pending AI Main Quest draft.
+- `/main reject` → discard the pending AI Main Quest draft.
+- `/main list` → list active Main Quests.
+- `/main progress <id> <amount>` → set Main Quest progress. If progress reaches the
+  target, the quest auto-completes and rewards are granted once.
+- `/main complete <id>` → manually complete a Main Quest and grant rewards once.
+- `/main archive <id>` → archive a Main Quest without deleting its DB history.
 
 The summary is posted to `#system-output` (if configured) and stored for the dashboard.
+
+Daily Quest activity logs are different from commands: send workout/study logs inside the
+active **Day-N** thread. Example logs: `30 pushups`, `3x10 situps`, `walked 2km`,
+`5000 steps`, `studied 15m`, `read 5 pages`.
 
 ### Penalties (manual)
 
@@ -326,7 +342,7 @@ rank, and total XP to _reach_ level L is `50 × (L−1) × L` (the jump to the n
 | National-Level | 96              | 456,000         | 1,140            | 3,040             |
 | Monarch        | 120             | 714,000         | 1,785            | 4,760             |
 
-Quest XP per difficulty: easy 10 · normal 25 · hard 60 · boss 150 · raid 400.
+Quest XP per difficulty: easy 10 · normal 25 · hard 300 · boss 750 · raid 1500.
 
 ---
 
@@ -366,6 +382,44 @@ Quest XP per difficulty: easy 10 · normal 25 · hard 60 · boss 150 · raid 400
 
 ## Command reference
 
+Discord commands in `#commands`:
+
+```text
+/summary today
+!summary today
+/summary week
+!summary week
+/report weekly
+
+/daily
+/daily create
+/daily evaluate
+/daily thread
+
+/main suggest <natural goal>
+/main accept
+/main reject
+/main list
+/main progress <id> <amount>
+/main complete <id>
+/main archive <id>
+```
+
+Daily Quest thread log examples:
+
+```text
+30 pushups
+3x10 situps
+30 squats
+10 pullups
+walked 2km
+5000 steps
+studied 15m
+read 5 pages
+```
+
+Local project commands:
+
 ```bash
 pnpm dev            # API + dashboard, hot reload
 pnpm build          # build all packages
@@ -384,6 +438,8 @@ curl http://127.0.0.1:3333/api/health
 API endpoints: `/api/health`, `/api/config/boundaries`, `/api/stats/summary`,
 `/api/stats/player`, `/api/stats/allocate`, `/api/daily`, `/api/daily/tier`,
 `/api/daily/metric`, `/api/daily/evaluate`, `/api/daily/flush`, `/api/loot/:id/claim`,
-`/api/quests`, `/api/quests/:id/complete`, `/api/achievements`, `/api/timeline`,
-`/api/notifications`, `/api/penalties`, `/api/summaries/today`, `/api/summaries/week`,
-`/api/reports/weekly`, `/api/events/stream`.
+`/api/main-quests`, `/api/main-quests/:id/progress`, `/api/main-quests/:id/complete`,
+`/api/main-quests/:id/archive`, `/api/quests`, `/api/quests/:id/complete`,
+`/api/achievements`, `/api/timeline`, `/api/notifications`, `/api/penalties`,
+`/api/summaries/today`, `/api/summaries/week`, `/api/reports/weekly`,
+`/api/events/stream`.

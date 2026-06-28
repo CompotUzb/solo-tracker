@@ -529,6 +529,12 @@ code {
 .main-quest-objective {
   margin-top: 8px;
 }
+.main-quest-id {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 0.78rem;
+}
 .main-quest-objective .quest-desc {
   display: -webkit-box;
   overflow: hidden;
@@ -537,24 +543,12 @@ code {
   -webkit-box-orient: vertical;
 }
 .main-quest-progress,
-.main-quest-reward,
-.main-quest-steps {
+.main-quest-reward {
   margin-top: 9px;
   font-size: 0.78rem;
 }
 .main-quest-progress .meter {
   margin-top: 6px;
-}
-.main-quest-steps ul {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  margin: 0;
-  padding-left: 16px;
-  color: var(--muted);
-}
-.main-quest-steps li {
-  line-height: 1.25;
 }
 
 /* Activity */

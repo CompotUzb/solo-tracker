@@ -67,20 +67,6 @@ export function mainQuestProgressUnit(quest: Quest): string | null {
   return unit || null;
 }
 
-export function mainQuestNextSteps(quest: Quest, maxSteps = 3): string[] {
-  const lines = quest.description?.split(/\r?\n/) ?? [];
-  const start = lines.findIndex(
-    (line) => line.trim().toLowerCase() === "suggested steps:",
-  );
-  if (start === -1) return [];
-  return lines
-    .slice(start + 1)
-    .map((line) => line.trim().replace(/^-\s*/, ""))
-    .filter(Boolean)
-    .slice(0, maxSteps)
-    .map((step) => truncateText(step, 80));
-}
-
 /** Percentage [0,100] of progress toward the next level, clamped and divide-by-zero safe. */
 export function xpProgressPercent(
   xpIntoLevel: number,

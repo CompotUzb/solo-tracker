@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  mainQuestNextSteps,
   mainQuestObjective,
   mainQuestProgressUnit,
   mainQuestRewardSummary,
@@ -60,7 +59,7 @@ describe("mainQuestRewardSummary", () => {
 });
 
 describe("compact Main Quest helpers", () => {
-  it("extracts a compact objective, unit, and first three steps", () => {
+  it("extracts a compact objective and unit from old AI-style descriptions", () => {
     const q = quest({
       questType: "hard",
       description: [
@@ -79,11 +78,6 @@ describe("compact Main Quest helpers", () => {
       "Prepare for the final exam through structured review and practice problems that reveal weak topics before the exam date.",
     );
     expect(mainQuestProgressUnit(q)).toBe("study sessions");
-    expect(mainQuestNextSteps(q)).toEqual([
-      "Review core topics",
-      "Complete practice problems",
-      "Take mock exam",
-    ]);
   });
 
   it("truncates overly long objective text for dashboard cards", () => {
