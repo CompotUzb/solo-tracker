@@ -33,6 +33,54 @@ export function mainQuestRewardSummary(quest: Quest): string {
   );
 }
 
+const MAX_OBJECTIVE_LENGTH = 160;
+
+function truncateText(value: string, maxLength: number): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  const clipped = normalized.slice(0, maxLength - 1).trimEnd();
+  return `${clipped}…`;
+}
+
+export function mainQuestObjective(quest: Quest): string | null {
+  const description = quest.description?.trim();
+  if (!description) return null;
+  const firstLine =
+    description
+      .split(/\r?\n/)
+      .find((line) => {
+        const trimmed = line.trim();
+        return (
+          trimmed &&
+          !trimmed.toLowerCase().startsWith("unit:") &&
+          !trimmed.toLowerCase().startsWith("suggested steps:")
+        );
+      }) ?? "";
+  return firstLine ? truncateText(firstLine, MAX_OBJECTIVE_LENGTH) : null;
+}
+
+export function mainQuestProgressUnit(quest: Quest): string | null {
+  const unitLine = quest.description
+    ?.split(/\r?\n/)
+    .find((line) => line.trim().toLowerCase().startsWith("unit:"));
+  const unit = unitLine?.replace(/^unit:\s*/i, "").trim();
+  return unit || null;
+}
+
+export function mainQuestNextSteps(quest: Quest, maxSteps = 3): string[] {
+  const lines = quest.description?.split(/\r?\n/) ?? [];
+  const start = lines.findIndex(
+    (line) => line.trim().toLowerCase() === "suggested steps:",
+  );
+  if (start === -1) return [];
+  return lines
+    .slice(start + 1)
+    .map((line) => line.trim().replace(/^-\s*/, ""))
+    .filter(Boolean)
+    .slice(0, maxSteps)
+    .map((step) => truncateText(step, 80));
+}
+
 /** Percentage [0,100] of progress toward the next level, clamped and divide-by-zero safe. */
 export function xpProgressPercent(
   xpIntoLevel: number,

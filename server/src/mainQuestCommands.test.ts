@@ -90,6 +90,40 @@ describe("Main Quest command handler", () => {
     );
   });
 
+  it("stores a compact accepted description while preserving suggested steps", async () => {
+    const handler = createMainQuestCommandHandler({
+      db,
+      ai: {
+        suggest: async () => ({
+          ok: true,
+          draft: draft({
+            description:
+              "Prepare for the final exam through structured review, practice problems, mock exams, weak-topic correction, mistake review, repeated timed drills, and final summary notes before the deadline.",
+            suggestedSteps: [
+              "Review all core lecture topics.",
+              "Complete 50 practice problems.",
+              "Complete 3 mock exams.",
+              "Rework mistakes until understood.",
+            ],
+          }),
+        }),
+      },
+    });
+
+    await handler.handle({ kind: "suggest", goal: "prepare exam" }, USER);
+    await handler.handle({ kind: "accept" }, USER);
+
+    const row = db
+      .prepare("select description from quests")
+      .get() as { description: string };
+    const objective = row.description.split("\n")[0];
+    expect(objective).toHaveLength(160);
+    expect(objective.endsWith("…")).toBe(true);
+    expect(row.description).toContain("Suggested steps:");
+    expect(row.description).toContain("- Complete 3 mock exams.");
+    expect(row.description).toContain("- Rework mistakes until understood.");
+  });
+
   it("updates progress and completes Main Quests through deterministic logic", async () => {
     const handler = createMainQuestCommandHandler({
       db,

@@ -2,6 +2,9 @@ import type { AsyncState } from "./api.js";
 import {
   formatDate,
   formatNumber,
+  mainQuestNextSteps,
+  mainQuestObjective,
+  mainQuestProgressUnit,
   mainQuestRewardSummary,
   ratioPercent,
   relativeTime,
@@ -305,6 +308,64 @@ function QuestList({
   );
 }
 
+function MainQuestList({
+  quests,
+  emptyMessage,
+}: {
+  quests: Quest[];
+  emptyMessage: string;
+}) {
+  if (quests.length === 0) return <EmptyState message={emptyMessage} />;
+  return (
+    <ul className="quest-list main-quest-list">
+      {quests.map((quest) => {
+        const percent = ratioPercent(quest.progressCount, quest.targetCount);
+        const objective = mainQuestObjective(quest);
+        const progressUnit = mainQuestProgressUnit(quest);
+        const steps = mainQuestNextSteps(quest);
+        return (
+          <li key={quest.id} className="quest main-quest">
+            <div className="quest-head">
+              <span className="quest-title main-quest-title">{quest.title}</span>
+              <Badge tone={QUEST_TONES[quest.questType] ?? "normal"}>
+                {quest.questType}
+              </Badge>
+            </div>
+            {objective ? (
+              <div className="main-quest-objective">
+                <span className="quest-label">Objective</span>
+                <p className="quest-desc muted">{objective}</p>
+              </div>
+            ) : null}
+            <div className="main-quest-progress">
+              <span className="quest-label">Progress</span>
+              <span className="muted">
+                {quest.progressCount} / {quest.targetCount}
+                {progressUnit ? ` ${progressUnit}` : ""}
+              </span>
+              <ProgressBar percent={percent} />
+            </div>
+            <div className="main-quest-reward">
+              <span className="quest-label">Reward</span>
+              <span className="muted">{mainQuestRewardSummary(quest)}</span>
+            </div>
+            {steps.length ? (
+              <div className="main-quest-steps">
+                <span className="quest-label">Next steps</span>
+                <ul>
+                  {steps.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function DailyQuests({
   quests,
 }: {
@@ -329,7 +390,7 @@ export function MainQuests({ quests }: { quests: AsyncState<QuestsResponse> }) {
     <Card title="Main Quests" icon="🏰" area="main">
       <Async state={quests} loadingLabel="Fetching quests…">
         {(data) => (
-          <QuestList
+          <MainQuestList
             quests={splitQuests(data.quests).main}
             emptyMessage="No active Main Quest. Choose a major arc to clear."
           />

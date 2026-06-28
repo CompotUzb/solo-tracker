@@ -497,6 +497,13 @@ code {
   margin: 6px 0 0;
   font-size: 0.84rem;
 }
+.quest-label {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
 .quest-foot {
   display: flex;
   align-items: center;
@@ -506,6 +513,48 @@ code {
 }
 .quest-foot .meter {
   flex: 1;
+}
+.main-quest-list {
+  gap: 10px;
+}
+.main-quest {
+  padding: 11px;
+}
+.main-quest-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.main-quest-objective {
+  margin-top: 8px;
+}
+.main-quest-objective .quest-desc {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 0;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.main-quest-progress,
+.main-quest-reward,
+.main-quest-steps {
+  margin-top: 9px;
+  font-size: 0.78rem;
+}
+.main-quest-progress .meter {
+  margin-top: 6px;
+}
+.main-quest-steps ul {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding-left: 16px;
+  color: var(--muted);
+}
+.main-quest-steps li {
+  line-height: 1.25;
 }
 
 /* Activity */

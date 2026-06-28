@@ -55,8 +55,12 @@ export function formatMainQuestDraft(draft: MainQuestDraft): string {
 }
 
 function draftDescription(draft: MainQuestDraft): string {
+  const description =
+    draft.description.length > 160
+      ? `${draft.description.slice(0, 159).trimEnd()}…`
+      : draft.description;
   return [
-    draft.description,
+    description,
     `Unit: ${draft.progressUnit}`,
     "",
     "Suggested steps:",

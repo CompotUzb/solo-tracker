@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  mainQuestNextSteps,
+  mainQuestObjective,
+  mainQuestProgressUnit,
   mainQuestRewardSummary,
   ratioPercent,
   relativeTime,
@@ -53,6 +56,44 @@ describe("mainQuestRewardSummary", () => {
     expect(mainQuestRewardSummary(quest({ questType: "raid", xpReward: 1500 }))).toBe(
       "+1500 XP · Technical +15 · Discipline +10 · Survival +5",
     );
+  });
+});
+
+describe("compact Main Quest helpers", () => {
+  it("extracts a compact objective, unit, and first three steps", () => {
+    const q = quest({
+      questType: "hard",
+      description: [
+        "Prepare for the final exam through structured review and practice problems that reveal weak topics before the exam date.",
+        "Unit: study sessions",
+        "",
+        "Suggested steps:",
+        "- Review core topics",
+        "- Complete practice problems",
+        "- Take mock exam",
+        "- Rework mistakes",
+      ].join("\n"),
+    });
+
+    expect(mainQuestObjective(q)).toBe(
+      "Prepare for the final exam through structured review and practice problems that reveal weak topics before the exam date.",
+    );
+    expect(mainQuestProgressUnit(q)).toBe("study sessions");
+    expect(mainQuestNextSteps(q)).toEqual([
+      "Review core topics",
+      "Complete practice problems",
+      "Take mock exam",
+    ]);
+  });
+
+  it("truncates overly long objective text for dashboard cards", () => {
+    const q = quest({
+      description:
+        "Prepare for the final exam through structured review, practice problems, mock exams, weak-topic correction, mistake review, repeated timed drills, and final summary notes before the deadline.",
+    });
+
+    expect(mainQuestObjective(q)).toHaveLength(160);
+    expect(mainQuestObjective(q)?.endsWith("…")).toBe(true);
   });
 });
 
