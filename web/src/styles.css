@@ -103,7 +103,7 @@ body {
 }
 
 /* Layout grid — 12-column named areas. The left eight columns carry the main flow;
-   the right four hold Experience, Activity Metrics, and the tall Achievements panel. */
+   the right four hold Experience, Main Quests, and the tall Achievements panel. */
 .grid {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -111,8 +111,8 @@ body {
   gap: 18px;
   grid-template-areas:
     "profile profile profile profile profile profile profile profile experience experience experience experience"
-    "stats   stats   stats   stats   stats   stats   stats   stats   metrics     metrics     metrics     metrics"
-    "main    main    main    main    main    main    main    main    metrics     metrics     metrics     metrics"
+    "stats   stats   stats   stats   stats   stats   stats   stats   main        main        main        main"
+    "metrics metrics metrics metrics metrics metrics metrics metrics main        main        main        main"
     "notify  notify  notify  notify  notify  notify  notify  notify  achievements achievements achievements achievements"
     "recent  recent  recent  recent  recent  recent  recent  recent  achievements achievements achievements achievements"
     "weekly  weekly  weekly  weekly  weekly  weekly  weekly  weekly  weekly       weekly       weekly       weekly";
@@ -1047,9 +1047,8 @@ code {
       "profile"
       "experience"
       "stats"
-      "metrics"
-      "daily"
       "main"
+      "metrics"
       "notify"
       "achievements"
       "recent"
