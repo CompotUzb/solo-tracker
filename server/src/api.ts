@@ -10,13 +10,11 @@ import { publicConfig } from "./config.js";
 import { applyMigrations, openDatabase, type Db } from "./db.js";
 import {
   addQuest,
-  archiveQuest,
   completeQuest,
   getQuest,
   listMainQuests,
   listQuests,
   QUEST_TYPES,
-  updateQuestProgress,
   type QuestStatus,
 } from "./quests.js";
 import { listAchievements, weeklyReport } from "./reports.js";
@@ -40,6 +38,11 @@ import {
   getDailySnapshot,
   runDailyEvaluation,
 } from "./dailyQuests.js";
+import {
+  archiveMainQuest,
+  completeMainQuest,
+  progressMainQuest,
+} from "./mainQuestLifecycle.js";
 
 export type DiscordStatus = "connected" | "disconnected" | "skipped";
 
@@ -373,23 +376,23 @@ export function createApi({
         return { error: "invalid_progress", details: parsed.error.flatten() };
       }
       const userId = parsed.data.userId ?? DEFAULT_USER_ID;
-      const existing = getQuest(db, req.params.id);
-      if (!existing) {
-        reply.code(404);
-        return { error: "quest_not_found" };
-      }
-      if (existing.userId !== userId) {
-        reply.code(403);
-        return { error: "forbidden" };
-      }
-      const quest = updateQuestProgress(db, {
+      const result = progressMainQuest(db, {
         questId: req.params.id,
         userId,
         progressCount: parsed.data.amount,
-      });
-      broadcast("main_quest.progress", { userId, quest });
-      broadcast("quest.updated", { action: "progress", userId, quest });
-      return { quest };
+        notifier,
+      }, { emit: broadcast });
+      return {
+        quest: result.completion?.quest ?? result.quest,
+        completion: result.completion
+          ? {
+              xpAwarded: result.completion.award.xpAwarded,
+              alreadyCompleted: result.completion.alreadyCompleted,
+              leveledUp: result.completion.award.leveledUp,
+              rankChanged: result.completion.award.rankChanged,
+            }
+          : null,
+      };
     },
   );
 
@@ -402,59 +405,18 @@ export function createApi({
         return { error: "invalid_request", details: parsed.error.flatten() };
       }
       const userId = parsed.data.userId ?? DEFAULT_USER_ID;
-      const existing = getQuest(db, req.params.id);
-      if (!existing) {
-        reply.code(404);
-        return { error: "quest_not_found" };
-      }
-      if (existing.userId !== userId) {
-        reply.code(403);
-        return { error: "forbidden" };
-      }
-      if (!["hard", "boss", "raid"].includes(existing.questType)) {
-        reply.code(400);
-        return { error: "not_a_main_quest" };
-      }
-      const result = completeQuest(db, { questId: req.params.id, userId });
-      let playerStats = getPlayerStats(db, userId).stats;
-      if (!result.alreadyCompleted) {
-        const statResult = applyStatGains(db, {
-          userId,
-          gains: questStatGains(result.quest.questType),
-          reason: "main_quest_completed",
-          source: "quest",
-          sourceId: result.quest.id,
-        });
-        playerStats = statResult.stats;
-        notifier?.notify({
-          userId,
-          type: "system",
-          title: "🏰 Main Quest Cleared",
-          body: `${result.quest.title}. Reward: +${result.award.xpAwarded} XP.`,
-          metadata: { questId: result.quest.id, questType: result.quest.questType },
-        });
-        broadcast("stats.player.updated", { userId });
-      }
-      broadcast("main_quest.completed", {
+      const result = completeMainQuest(db, {
+        questId: req.params.id,
         userId,
-        quest: result.quest,
-        xpAwarded: result.award.xpAwarded,
-        alreadyCompleted: result.alreadyCompleted,
-      });
-      broadcast("quest.updated", { action: "completed", userId, quest: result.quest });
-      broadcast("xp", {
-        userId,
-        xpAwarded: result.award.xpAwarded,
-        level: result.award.current.level,
-        rankCode: result.award.current.rankCode,
-      });
+        notifier,
+      }, { emit: broadcast });
       return {
         quest: result.quest,
         xpAwarded: result.award.xpAwarded,
         leveledUp: result.award.leveledUp,
         rankChanged: result.award.rankChanged,
-        stats: getRankSnapshot(db, userId),
-        playerStats,
+        stats: result.stats,
+        playerStats: result.playerStats,
         alreadyCompleted: result.alreadyCompleted,
       };
     },
@@ -469,18 +431,9 @@ export function createApi({
         return { error: "invalid_request", details: parsed.error.flatten() };
       }
       const userId = parsed.data.userId ?? DEFAULT_USER_ID;
-      const existing = getQuest(db, req.params.id);
-      if (!existing) {
-        reply.code(404);
-        return { error: "quest_not_found" };
-      }
-      if (existing.userId !== userId) {
-        reply.code(403);
-        return { error: "forbidden" };
-      }
-      const quest = archiveQuest(db, { questId: req.params.id, userId });
-      broadcast("main_quest.archived", { userId, quest });
-      broadcast("quest.updated", { action: "archived", userId, quest });
+      const quest = archiveMainQuest(db, { questId: req.params.id, userId }, {
+        emit: broadcast,
+      });
       return { quest };
     },
   );

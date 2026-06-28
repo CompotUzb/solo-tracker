@@ -67,6 +67,8 @@ export function parseMainCommand(
   }
   const complete = trimmed.match(/^\/main\s+complete\s+(\S+)$/i);
   if (complete) return { kind: "complete", questId: complete[1] };
+  const archive = trimmed.match(/^\/main\s+archive\s+(\S+)$/i);
+  if (archive) return { kind: "archive", questId: archive[1] };
   return null;
 }
 

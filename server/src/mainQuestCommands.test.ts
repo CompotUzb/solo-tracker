@@ -143,4 +143,64 @@ describe("Main Quest command handler", () => {
       db.prepare("select count(*) as n from xp_awards").get(),
     ).toMatchObject({ n: 1 });
   });
+
+  it("archives Main Quests without deleting history", async () => {
+    const onChanged = vi.fn();
+    const handler = createMainQuestCommandHandler({
+      db,
+      ai: { suggest: async () => ({ ok: true, draft: draft() }) },
+      onChanged,
+    });
+    await handler.handle({ kind: "suggest", goal: "prepare exam" }, USER);
+    await handler.handle({ kind: "accept" }, USER);
+    const quest = db.prepare("select id from quests").get() as { id: string };
+
+    await expect(
+      handler.handle({ kind: "archive", questId: quest.id }, USER),
+    ).resolves.toBe("Main Quest archived: Probability & Statistics Exam Prep");
+
+    expect(
+      db.prepare("select status from quests where id=?").get(quest.id),
+    ).toMatchObject({ status: "archived" });
+    expect(
+      db.prepare("select count(*) as n from quests where id=?").get(quest.id),
+    ).toMatchObject({ n: 1 });
+    await expect(handler.handle({ kind: "list" }, USER)).resolves.toBe(
+      "No active Main Quests.",
+    );
+    expect(onChanged).toHaveBeenCalledWith(
+      "main_quest.archived",
+      expect.objectContaining({ userId: USER }),
+    );
+  });
+
+  it("auto-completes when progress reaches target and awards rewards once", async () => {
+    const notifier = { deliveryEnabled: false, notify: vi.fn() };
+    const handler = createMainQuestCommandHandler({
+      db,
+      ai: { suggest: async () => ({ ok: true, draft: draft() }) },
+      notifier,
+    });
+    await handler.handle({ kind: "suggest", goal: "prepare exam" }, USER);
+    await handler.handle({ kind: "accept" }, USER);
+    const quest = db.prepare("select id from quests").get() as { id: string };
+
+    await expect(
+      handler.handle({ kind: "progress", questId: quest.id, amount: 10 }, USER),
+    ).resolves.toContain("Main Quest complete:");
+    await expect(
+      handler.handle({ kind: "progress", questId: quest.id, amount: 10 }, USER),
+    ).resolves.toContain("Reward: +0 XP");
+
+    expect(
+      db.prepare("select status,progress_count from quests where id=?").get(quest.id),
+    ).toMatchObject({ status: "completed", progress_count: 10 });
+    expect(
+      db.prepare("select count(*) as n from xp_awards").get(),
+    ).toMatchObject({ n: 1 });
+    expect(
+      db.prepare("select count(*) as n from stat_awards").get(),
+    ).toMatchObject({ n: 2 });
+    expect(notifier.notify).toHaveBeenCalledTimes(1);
+  });
 });

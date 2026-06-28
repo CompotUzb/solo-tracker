@@ -1,18 +1,15 @@
 import type { Db } from "./db.js";
 import type { Notifier } from "./notifications.js";
-import {
-  addQuest,
-  completeQuest,
-  getQuest,
-  listMainQuests,
-  updateQuestProgress,
-} from "./quests.js";
-import { getRankSnapshot } from "./xp.js";
-import { applyStatGains, questStatGains } from "./stats.js";
+import { addQuest, listMainQuests } from "./quests.js";
 import type {
   MainQuestDraft,
   MainQuestSuggestionResult,
 } from "./mainQuestAi.js";
+import {
+  archiveMainQuest,
+  completeMainQuest,
+  progressMainQuest,
+} from "./mainQuestLifecycle.js";
 
 export type MainCommand =
   | { kind: "suggest"; goal: string }
@@ -20,7 +17,8 @@ export type MainCommand =
   | { kind: "reject" }
   | { kind: "list" }
   | { kind: "progress"; questId: string; amount: number }
-  | { kind: "complete"; questId: string };
+  | { kind: "complete"; questId: string }
+  | { kind: "archive"; questId: string };
 
 export interface MainQuestAiService {
   suggest(goal: string): Promise<MainQuestSuggestionResult>;
@@ -126,65 +124,31 @@ export function createMainQuestCommandHandler(input: {
       }
 
       if (command.kind === "progress") {
-        const quest = updateQuestProgress(input.db, {
+        const result = progressMainQuest(input.db, {
           questId: command.questId,
           userId,
           progressCount: command.amount,
-        });
-        input.onChanged?.("main_quest.progress", { userId, quest });
-        input.onChanged?.("quest.updated", {
-          action: "progress",
-          userId,
-          quest,
-        });
+          notifier: input.notifier,
+        }, { emit: input.onChanged });
+        const quest = result.completion?.quest ?? result.quest;
+        if (result.completion) {
+          return `Main Quest complete: ${quest.title}. Reward: +${result.completion.award.xpAwarded} XP.`;
+        }
         return `Main Quest progress updated: ${quest.title} (${quest.progressCount}/${quest.targetCount}).`;
       }
 
-      const existing = getQuest(input.db, command.questId);
-      if (!existing) return "Main Quest not found.";
-      if (!["hard", "boss", "raid"].includes(existing.questType)) {
-        return "That quest is not a Main Quest.";
+      if (command.kind === "archive") {
+        const quest = archiveMainQuest(input.db, { questId: command.questId, userId }, {
+          emit: input.onChanged,
+        });
+        return `Main Quest archived: ${quest.title}`;
       }
-      const result = completeQuest(input.db, {
+
+      const result = completeMainQuest(input.db, {
         questId: command.questId,
         userId,
-      });
-      if (!result.alreadyCompleted) {
-        applyStatGains(input.db, {
-          userId,
-          gains: questStatGains(result.quest.questType),
-          reason: "main_quest_completed",
-          source: "quest",
-          sourceId: result.quest.id,
-        });
-        input.notifier?.notify({
-          userId,
-          type: "system",
-          title: "🏰 Main Quest Cleared",
-          body: `${result.quest.title}. Reward: +${result.award.xpAwarded} XP.`,
-          metadata: {
-            questId: result.quest.id,
-            questType: result.quest.questType,
-          },
-        });
-        input.onChanged?.("stats.player.updated", { userId });
-      }
-      input.onChanged?.("main_quest.completed", {
-        userId,
-        quest: result.quest,
-        xpAwarded: result.award.xpAwarded,
-        alreadyCompleted: result.alreadyCompleted,
-      });
-      input.onChanged?.("quest.updated", {
-        action: "completed",
-        userId,
-        quest: result.quest,
-      });
-      input.onChanged?.("xp", {
-        userId,
-        xpAwarded: result.award.xpAwarded,
-        level: getRankSnapshot(input.db, userId).level,
-      });
+        notifier: input.notifier,
+      }, { emit: input.onChanged });
       return `Main Quest complete: ${result.quest.title}. Reward: +${result.award.xpAwarded} XP.`;
     },
   };

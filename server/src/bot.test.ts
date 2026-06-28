@@ -174,6 +174,10 @@ describe("main command parsing", () => {
       kind: "complete",
       questId: "quest-1",
     });
+    expect(parseMainCommand("/main archive quest-1")).toEqual({
+      kind: "archive",
+      questId: "quest-1",
+    });
     expect(parseMainCommand("/main unknown")).toBeNull();
   });
 

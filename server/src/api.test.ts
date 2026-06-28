@@ -94,17 +94,21 @@ describe("API", () => {
     });
     expect(progress.statusCode).toBe(200);
     expect(progress.json().quest.progressCount).toBe(2);
+    expect(progress.json().completion).toBeNull();
 
     const list = await api.app.inject({ method: "GET", url: "/api/main-quests" });
     expect(list.json().quests).toHaveLength(1);
 
-    const complete = await api.app.inject({
-      method: "POST",
-      url: `/api/main-quests/${questId}/complete`,
-      payload: {},
+    const autoComplete = await api.app.inject({
+      method: "PATCH",
+      url: `/api/main-quests/${questId}/progress`,
+      payload: { amount: 7 },
     });
-    expect(complete.statusCode).toBe(200);
-    expect(complete.json()).toMatchObject({ xpAwarded: 750, alreadyCompleted: false });
+    expect(autoComplete.statusCode).toBe(200);
+    expect(autoComplete.json()).toMatchObject({
+      quest: { status: "completed", progressCount: 7 },
+      completion: { xpAwarded: 750, alreadyCompleted: false },
+    });
 
     const again = await api.app.inject({
       method: "POST",
@@ -119,6 +123,46 @@ describe("API", () => {
         body: "Complete 7-Day Daily Quest Streak. Reward: +750 XP.",
       }),
     ]);
+    await api.close();
+  });
+
+  it("archives Main Quests without deleting them", async () => {
+    const config = loadConfig({
+      DISCORD_TOKEN: "fake",
+      DISCORD_CLIENT_ID: "client",
+      TRACKED_GUILD_ID: "guild",
+      TRACKED_CHANNEL_IDS: "chan-1",
+      DATABASE_PATH: ":memory:",
+      SKIP_DISCORD_LOGIN: "true",
+    });
+    db = openDatabase(":memory:");
+    const api = createApi({ config, discordStatus: () => "skipped", db });
+
+    const create = await api.app.inject({
+      method: "POST",
+      url: "/api/main-quests",
+      payload: {
+        title: "Finish Solo Tracker Deployment",
+        difficulty: "hard",
+        target: 5,
+        unit: "tasks",
+      },
+    });
+    const questId = create.json().quest.id;
+
+    const archive = await api.app.inject({
+      method: "POST",
+      url: `/api/main-quests/${questId}/archive`,
+      payload: {},
+    });
+    expect(archive.statusCode).toBe(200);
+    expect(archive.json().quest).toMatchObject({ status: "archived" });
+    expect(
+      db.prepare("select count(*) as n from quests where id=?").get(questId),
+    ).toMatchObject({ n: 1 });
+
+    const list = await api.app.inject({ method: "GET", url: "/api/main-quests" });
+    expect(list.json().quests).toHaveLength(0);
     await api.close();
   });
 });
