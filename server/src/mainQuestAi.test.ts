@@ -21,28 +21,63 @@ describe("AI Main Quest generation", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it("normalizes AI rewards to deterministic Main Quest rewards", () => {
+  it("normalizes AI XP and category stats for exam-prep goals", () => {
     expect(
-      normalizeMainQuestDraft({
-        title: "Probability & Statistics Exam Prep",
-        description: "Prepare through structured study.",
-        difficulty: "hard",
-        progress_target: 10,
-        progress_unit: "study sessions",
-        reward_xp: 9999,
-        reward_stats: { Intelligence: 99 },
-        suggested_steps: ["Review fundamentals"],
-        confidence: 0.9,
-      }),
+      normalizeMainQuestDraft(
+        {
+          title: "Probability & Statistics Exam Prep",
+          description: "Prepare through structured study.",
+          difficulty: "hard",
+          progress_target: 10,
+          progress_unit: "study sessions",
+          reward_xp: 9999,
+          reward_stats: { Intelligence: 99 },
+          suggested_steps: ["Review fundamentals"],
+          confidence: 0.9,
+        },
+        "I want to prepare probability and statistics for my exam",
+      ),
     ).toMatchObject({
       title: "Probability & Statistics Exam Prep",
       difficulty: "hard",
       progressTarget: 10,
       progressUnit: "study sessions",
       rewardXp: 300,
-      rewardStats: { Discipline: 3, "Technical Skill": 3 },
+      rewardStats: { Intelligence: 3, Discipline: 3, "Technical Skill": 2 },
       confidence: 0.9,
     });
+  });
+
+  it("replaces vague percent targets and fluffy exam steps with measurable work", () => {
+    const draft = normalizeMainQuestDraft(
+      {
+        title: "Defeat the Engineering Fundamentals Final Exam",
+        description: "Embark on a journey to conquer every exam topic.",
+        difficulty: "hard",
+        progress_target: 100,
+        progress_unit: "percent",
+        suggested_steps: [
+          "Attend all lectures",
+          "Form a study group",
+          "Stay motivated",
+        ],
+        confidence: 0.8,
+      },
+      "I want to prepare for engineering fundamentals final exam",
+    );
+
+    expect(draft.progressTarget).toBe(12);
+    expect(draft.progressUnit).toBe("study sessions");
+    expect(draft.description).toBe(
+      "Prepare through structured review, practice problems, mock exams, and weak-topic correction.",
+    );
+    expect(draft.suggestedSteps).toEqual([
+      "Review all core lecture topics.",
+      "Complete 50 practice problems.",
+      "Complete 3 mock exams.",
+      "Summarize weak topics after each session.",
+      "Rework mistakes until they are understood.",
+    ]);
   });
 
   it("calls OpenAI with a JSON-only Main Quest prompt and parses the draft", async () => {
@@ -86,6 +121,7 @@ describe("AI Main Quest generation", () => {
         }),
       }),
     );
+    expect(requestBody).toContain("never use percent/percentage/100 percent");
     expect(requestBody).toContain("Do not mark progress, complete quests, award XP");
     expect(result).toEqual({
       ok: true,
