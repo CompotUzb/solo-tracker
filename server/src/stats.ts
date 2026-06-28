@@ -178,14 +178,28 @@ export function messageStatGains(
 
 /** Stat gains for completing a quest. Quests build Discipline, scaled by difficulty. */
 export function questStatGains(questType: string): StatGain[] {
-  const amount: Record<string, number> = {
-    easy: 2,
-    normal: 2,
-    hard: 3,
-    boss: 4,
-    raid: 5,
-  };
-  return [{ statKey: "discipline", delta: amount[questType] ?? 2 }];
+  switch (questType) {
+    case "hard":
+      return [
+        { statKey: "discipline", delta: 3 },
+        { statKey: "technical", delta: 3 },
+      ];
+    case "boss":
+      return [
+        { statKey: "discipline", delta: 5 },
+        { statKey: "technical", delta: 7 },
+      ];
+    case "raid":
+      return [
+        { statKey: "discipline", delta: 10 },
+        { statKey: "technical", delta: 15 },
+        { statKey: "survival", delta: 5 },
+      ];
+    case "easy":
+    case "normal":
+    default:
+      return [{ statKey: "discipline", delta: 2 }];
+  }
 }
 
 export interface PlayerStat {

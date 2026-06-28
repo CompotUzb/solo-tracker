@@ -10,10 +10,13 @@ import { publicConfig } from "./config.js";
 import { applyMigrations, openDatabase, type Db } from "./db.js";
 import {
   addQuest,
+  archiveQuest,
   completeQuest,
   getQuest,
+  listMainQuests,
   listQuests,
   QUEST_TYPES,
+  updateQuestProgress,
   type QuestStatus,
 } from "./quests.js";
 import { listAchievements, weeklyReport } from "./reports.js";
@@ -53,6 +56,20 @@ const addQuestBody = z.object({
 });
 
 const completeQuestBody = z.object({ userId: z.string().min(1).optional() });
+const addMainQuestBody = z.object({
+  userId: z.string().min(1).optional(),
+  title: z.string().min(1),
+  description: z.string().optional(),
+  difficulty: z.enum(["hard", "boss", "raid"]),
+  target: z.number().int().positive().optional(),
+  unit: z.string().min(1).optional(),
+  startsAt: z.string().optional(),
+  dueAt: z.string().optional(),
+});
+const progressMainQuestBody = z.object({
+  userId: z.string().min(1).optional(),
+  amount: z.number().int().nonnegative(),
+});
 const penaltyBody = z.object({
   userId: z.string().min(1).optional(),
   reason: z.string().min(1),
@@ -312,6 +329,159 @@ export function createApi({
         )
         .all(userId ?? null, userId ?? null, limit);
       return { items: rows };
+    },
+  );
+
+  app.get<{ Querystring: { userId?: string } }>(
+    "/api/main-quests",
+    async (req) => {
+      const userId = req.query.userId ?? DEFAULT_USER_ID;
+      return { userId, quests: listMainQuests(db, userId) };
+    },
+  );
+
+  app.post("/api/main-quests", async (req, reply) => {
+    const parsed = addMainQuestBody.safeParse(req.body);
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: "invalid_main_quest", details: parsed.error.flatten() };
+    }
+    const userId = parsed.data.userId ?? DEFAULT_USER_ID;
+    const descriptionParts = [parsed.data.description?.trim()].filter(Boolean);
+    if (parsed.data.unit) descriptionParts.push(`Unit: ${parsed.data.unit}`);
+    const quest = addQuest(db, {
+      userId,
+      title: parsed.data.title,
+      questType: parsed.data.difficulty,
+      description: descriptionParts.join("\n") || null,
+      targetCount: parsed.data.target,
+      startsAt: parsed.data.startsAt,
+      dueAt: parsed.data.dueAt,
+    });
+    broadcast("main_quest.created", { userId, quest });
+    broadcast("quest.updated", { action: "created", userId, quest });
+    reply.code(201);
+    return { quest };
+  });
+
+  app.patch<{ Params: { id: string } }>(
+    "/api/main-quests/:id/progress",
+    async (req, reply) => {
+      const parsed = progressMainQuestBody.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        reply.code(400);
+        return { error: "invalid_progress", details: parsed.error.flatten() };
+      }
+      const userId = parsed.data.userId ?? DEFAULT_USER_ID;
+      const existing = getQuest(db, req.params.id);
+      if (!existing) {
+        reply.code(404);
+        return { error: "quest_not_found" };
+      }
+      if (existing.userId !== userId) {
+        reply.code(403);
+        return { error: "forbidden" };
+      }
+      const quest = updateQuestProgress(db, {
+        questId: req.params.id,
+        userId,
+        progressCount: parsed.data.amount,
+      });
+      broadcast("main_quest.progress", { userId, quest });
+      broadcast("quest.updated", { action: "progress", userId, quest });
+      return { quest };
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    "/api/main-quests/:id/complete",
+    async (req, reply) => {
+      const parsed = completeQuestBody.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        reply.code(400);
+        return { error: "invalid_request", details: parsed.error.flatten() };
+      }
+      const userId = parsed.data.userId ?? DEFAULT_USER_ID;
+      const existing = getQuest(db, req.params.id);
+      if (!existing) {
+        reply.code(404);
+        return { error: "quest_not_found" };
+      }
+      if (existing.userId !== userId) {
+        reply.code(403);
+        return { error: "forbidden" };
+      }
+      if (!["hard", "boss", "raid"].includes(existing.questType)) {
+        reply.code(400);
+        return { error: "not_a_main_quest" };
+      }
+      const result = completeQuest(db, { questId: req.params.id, userId });
+      let playerStats = getPlayerStats(db, userId).stats;
+      if (!result.alreadyCompleted) {
+        const statResult = applyStatGains(db, {
+          userId,
+          gains: questStatGains(result.quest.questType),
+          reason: "main_quest_completed",
+          source: "quest",
+          sourceId: result.quest.id,
+        });
+        playerStats = statResult.stats;
+        notifier?.notify({
+          userId,
+          type: "system",
+          title: "🏰 Main Quest Cleared",
+          body: `${result.quest.title}. Reward: +${result.award.xpAwarded} XP.`,
+          metadata: { questId: result.quest.id, questType: result.quest.questType },
+        });
+        broadcast("stats.player.updated", { userId });
+      }
+      broadcast("main_quest.completed", {
+        userId,
+        quest: result.quest,
+        xpAwarded: result.award.xpAwarded,
+        alreadyCompleted: result.alreadyCompleted,
+      });
+      broadcast("quest.updated", { action: "completed", userId, quest: result.quest });
+      broadcast("xp", {
+        userId,
+        xpAwarded: result.award.xpAwarded,
+        level: result.award.current.level,
+        rankCode: result.award.current.rankCode,
+      });
+      return {
+        quest: result.quest,
+        xpAwarded: result.award.xpAwarded,
+        leveledUp: result.award.leveledUp,
+        rankChanged: result.award.rankChanged,
+        stats: getRankSnapshot(db, userId),
+        playerStats,
+        alreadyCompleted: result.alreadyCompleted,
+      };
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    "/api/main-quests/:id/archive",
+    async (req, reply) => {
+      const parsed = completeQuestBody.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        reply.code(400);
+        return { error: "invalid_request", details: parsed.error.flatten() };
+      }
+      const userId = parsed.data.userId ?? DEFAULT_USER_ID;
+      const existing = getQuest(db, req.params.id);
+      if (!existing) {
+        reply.code(404);
+        return { error: "quest_not_found" };
+      }
+      if (existing.userId !== userId) {
+        reply.code(403);
+        return { error: "forbidden" };
+      }
+      const quest = archiveQuest(db, { questId: req.params.id, userId });
+      broadcast("main_quest.archived", { userId, quest });
+      broadcast("quest.updated", { action: "archived", userId, quest });
+      return { quest };
     },
   );
 

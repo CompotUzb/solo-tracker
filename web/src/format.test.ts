@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  mainQuestRewardSummary,
   ratioPercent,
   relativeTime,
   splitQuests,
@@ -41,6 +42,17 @@ describe("splitQuests", () => {
     const { daily, main } = splitQuests(quests);
     expect(daily.map((q) => q.id)).toEqual(["1", "2"]);
     expect(main.map((q) => q.id)).toEqual(["3", "4", "5"]);
+  });
+});
+
+describe("mainQuestRewardSummary", () => {
+  it("renders deterministic MVP main quest rewards", () => {
+    expect(mainQuestRewardSummary(quest({ questType: "boss", xpReward: 750 }))).toBe(
+      "+750 XP · Technical +7 · Discipline +5",
+    );
+    expect(mainQuestRewardSummary(quest({ questType: "raid", xpReward: 1500 }))).toBe(
+      "+1500 XP · Technical +15 · Discipline +10 · Survival +5",
+    );
   });
 });
 

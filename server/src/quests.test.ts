@@ -3,8 +3,11 @@ import { applyMigrations, openDatabase, type Db } from "./db.js";
 import {
   QUEST_XP_REWARDS,
   addQuest,
+  archiveQuest,
   completeQuest,
+  listMainQuests,
   listQuests,
+  updateQuestProgress,
   xpRewardForType,
 } from "./quests.js";
 import { awardXp, getRankSnapshot } from "./xp.js";
@@ -33,18 +36,18 @@ describe("quest XP reward formula", () => {
   it("maps each difficulty tier to its fixed reward", () => {
     expect(xpRewardForType("easy")).toBe(10);
     expect(xpRewardForType("normal")).toBe(25);
-    expect(xpRewardForType("hard")).toBe(60);
-    expect(xpRewardForType("boss")).toBe(150);
-    expect(xpRewardForType("raid")).toBe(400);
+    expect(xpRewardForType("hard")).toBe(300);
+    expect(xpRewardForType("boss")).toBe(750);
+    expect(xpRewardForType("raid")).toBe(1500);
   });
 
   it("exposes the canonical reward table from the parent spec", () => {
     expect(QUEST_XP_REWARDS).toEqual({
       easy: 10,
       normal: 25,
-      hard: 60,
-      boss: 150,
-      raid: 400,
+      hard: 300,
+      boss: 750,
+      raid: 1500,
     });
   });
 
@@ -65,7 +68,7 @@ describe("/quest add", () => {
       title: "Ship the engine",
       questType: "hard",
       status: "active",
-      xpReward: 60,
+      xpReward: 300,
       targetCount: 1,
       progressCount: 0,
       completedAt: null,
@@ -99,6 +102,69 @@ describe("/quest add", () => {
   });
 });
 
+describe("main quest MVP", () => {
+  it("lists only active and recently completed hard/boss/raid quests", () => {
+    addQuest(db, { userId: USER, title: "Daily", questType: "normal" }, clock());
+    const main = addQuest(
+      db,
+      { userId: USER, title: "Major arc", questType: "boss" },
+      clock(),
+    );
+    const done = addQuest(
+      db,
+      { userId: USER, title: "Cleared arc", questType: "hard" },
+      clock(),
+    );
+    completeQuest(db, { questId: done.id, userId: USER }, clock());
+    const archived = addQuest(
+      db,
+      { userId: USER, title: "Old arc", questType: "raid" },
+      clock(),
+    );
+    archiveQuest(db, { questId: archived.id, userId: USER }, clock());
+
+    expect(listMainQuests(db, USER).map((q) => q.id)).toEqual([
+      main.id,
+      done.id,
+    ]);
+  });
+
+  it("updates main quest progress without completing it automatically", () => {
+    const quest = addQuest(
+      db,
+      { userId: USER, title: "Seven day streak", questType: "boss", targetCount: 7 },
+      clock(),
+    );
+
+    const updated = updateQuestProgress(
+      db,
+      { questId: quest.id, userId: USER, progressCount: 2 },
+      clock(),
+    );
+
+    expect(updated.progressCount).toBe(2);
+    expect(updated.status).toBe("active");
+    expect(getQuestStatus(db, quest.id)).toBe("active");
+  });
+
+  it("archives a main quest without awarding XP", () => {
+    const quest = addQuest(
+      db,
+      { userId: USER, title: "Paused raid", questType: "raid" },
+      clock(),
+    );
+
+    const archived = archiveQuest(
+      db,
+      { questId: quest.id, userId: USER },
+      clock(),
+    );
+
+    expect(archived.status).toBe("archived");
+    expect(getRankSnapshot(db, USER).totalXp).toBe(0);
+  });
+});
+
 describe("/quest complete", () => {
   it("awards XP, marks the quest done, and updates player stats", () => {
     const quest = addQuest(
@@ -113,17 +179,17 @@ describe("/quest complete", () => {
     );
 
     expect(result.alreadyCompleted).toBe(false);
-    expect(result.award.xpAwarded).toBe(150);
+    expect(result.award.xpAwarded).toBe(750);
     expect(result.quest.status).toBe("completed");
     expect(result.quest.completedAt).toBe("2026-06-23T10:00:00.000Z");
     expect(result.quest.progressCount).toBe(result.quest.targetCount);
 
-    // 150 total XP -> level 2 (curve: L2 starts at 100, L3 at 300).
+    // 750 total XP -> level 4 (curve: L4 starts at 600, L5 at 1000).
     const stats = getRankSnapshot(db, USER);
-    expect(stats.totalXp).toBe(150);
-    expect(stats.level).toBe(2);
+    expect(stats.totalXp).toBe(750);
+    expect(stats.level).toBe(4);
     expect(result.award.leveledUp).toBe(true);
-    expect(result.award.levelsGained).toBe(1);
+    expect(result.award.levelsGained).toBe(3);
   });
 
   it("persists an auditable XP ledger row per completion", () => {
@@ -166,17 +232,17 @@ describe("/quest complete", () => {
       clock(),
     );
 
-    expect(first.award.xpAwarded).toBe(400);
+    expect(first.award.xpAwarded).toBe(1500);
     expect(second.alreadyCompleted).toBe(true);
     expect(second.award.xpAwarded).toBe(0);
-    expect(getRankSnapshot(db, USER).totalXp).toBe(400);
+    expect(getRankSnapshot(db, USER).totalXp).toBe(1500);
     expect(db.prepare("select count(*) as n from xp_awards").get()).toEqual({
       n: 1,
     });
   });
 
   it("accumulates XP across quests and advances level", () => {
-    // raid(400) -> total 400 -> level 3 (>=300), rank E (levels 1–17).
+    // raid(1500) -> total 1500 -> level 6 (>=1500), rank E (levels 1–17).
     const raid = addQuest(
       db,
       { userId: USER, title: "Raid", questType: "raid" },
@@ -187,12 +253,12 @@ describe("/quest complete", () => {
       { questId: raid.id, userId: USER },
       clock(),
     );
-    expect(result.award.current.level).toBe(3);
+    expect(result.award.current.level).toBe(6);
     expect(result.award.current.rankCode).toBe("e");
     expect(result.award.rankChanged).toBe(false);
-    expect(result.award.levelsGained).toBe(2);
+    expect(result.award.levelsGained).toBe(5);
 
-    // + boss(150) -> total 550 -> still level 3.
+    // + boss(750) -> total 2250 -> level 7.
     const boss = addQuest(
       db,
       { userId: USER, title: "Boss", questType: "boss" },
@@ -203,9 +269,9 @@ describe("/quest complete", () => {
       { questId: boss.id, userId: USER },
       clock(),
     );
-    expect(after.award.current.totalXp).toBe(550);
-    expect(after.award.current.level).toBe(3);
-    expect(after.award.leveledUp).toBe(false);
+    expect(after.award.current.totalXp).toBe(2250);
+    expect(after.award.current.level).toBe(7);
+    expect(after.award.leveledUp).toBe(true);
   });
 
   it("rejects completing a missing quest or another user's quest", () => {

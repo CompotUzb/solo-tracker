@@ -22,6 +22,17 @@ export function splitQuests(quests: Quest[]): {
   };
 }
 
+export function mainQuestRewardSummary(quest: Quest): string {
+  const statRewards: Record<string, string[]> = {
+    hard: ["Technical +3", "Discipline +3"],
+    boss: ["Technical +7", "Discipline +5"],
+    raid: ["Technical +15", "Discipline +10", "Survival +5"],
+  };
+  return [`+${quest.xpReward} XP`, ...(statRewards[quest.questType] ?? [])].join(
+    " · ",
+  );
+}
+
 /** Percentage [0,100] of progress toward the next level, clamped and divide-by-zero safe. */
 export function xpProgressPercent(
   xpIntoLevel: number,

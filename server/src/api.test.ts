@@ -33,4 +33,92 @@ describe("API", () => {
     });
     await api.close();
   });
+
+  it("supports MVP main quest endpoints and stores one completion notification", async () => {
+    const config = loadConfig({
+      DISCORD_TOKEN: "fake",
+      DISCORD_CLIENT_ID: "client",
+      TRACKED_GUILD_ID: "guild",
+      TRACKED_CHANNEL_IDS: "chan-1",
+      DATABASE_PATH: ":memory:",
+      SKIP_DISCORD_LOGIN: "true",
+    });
+    db = openDatabase(":memory:");
+    const storedNotifications: unknown[] = [];
+    const api = createApi({
+      config,
+      discordStatus: () => "skipped",
+      db,
+      notifier: {
+        deliveryEnabled: false,
+        notify(input) {
+          storedNotifications.push(input);
+          return {
+            id: `notification-${storedNotifications.length}`,
+            userId: input.userId,
+            type: input.type,
+            title: input.title,
+            body: input.body ?? null,
+            metadata: input.metadata ?? null,
+            discordStatus: "skipped",
+            discordMessageId: null,
+            createdAt: "2026-06-23T10:00:00.000Z",
+          };
+        },
+      },
+    });
+
+    const create = await api.app.inject({
+      method: "POST",
+      url: "/api/main-quests",
+      payload: {
+        title: "Complete 7-Day Daily Quest Streak",
+        difficulty: "boss",
+        target: 7,
+        unit: "days",
+      },
+    });
+    expect(create.statusCode).toBe(201);
+    const questId = create.json().quest.id;
+    expect(create.json().quest).toMatchObject({
+      title: "Complete 7-Day Daily Quest Streak",
+      questType: "boss",
+      targetCount: 7,
+      xpReward: 750,
+    });
+
+    const progress = await api.app.inject({
+      method: "PATCH",
+      url: `/api/main-quests/${questId}/progress`,
+      payload: { amount: 2 },
+    });
+    expect(progress.statusCode).toBe(200);
+    expect(progress.json().quest.progressCount).toBe(2);
+
+    const list = await api.app.inject({ method: "GET", url: "/api/main-quests" });
+    expect(list.json().quests).toHaveLength(1);
+
+    const complete = await api.app.inject({
+      method: "POST",
+      url: `/api/main-quests/${questId}/complete`,
+      payload: {},
+    });
+    expect(complete.statusCode).toBe(200);
+    expect(complete.json()).toMatchObject({ xpAwarded: 750, alreadyCompleted: false });
+
+    const again = await api.app.inject({
+      method: "POST",
+      url: `/api/main-quests/${questId}/complete`,
+      payload: {},
+    });
+    expect(again.json()).toMatchObject({ xpAwarded: 0, alreadyCompleted: true });
+    expect(storedNotifications).toEqual([
+      expect.objectContaining({
+        type: "system",
+        title: "🏰 Main Quest Cleared",
+        body: "Complete 7-Day Daily Quest Streak. Reward: +750 XP.",
+      }),
+    ]);
+    await api.close();
+  });
 });

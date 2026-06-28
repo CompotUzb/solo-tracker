@@ -32,7 +32,7 @@ describe("quest API routes", () => {
     const quest = add.json().quest;
     expect(quest).toMatchObject({
       questType: "boss",
-      xpReward: 150,
+      xpReward: 750,
       status: "active",
     });
 
@@ -43,12 +43,12 @@ describe("quest API routes", () => {
     });
     expect(complete.statusCode).toBe(200);
     expect(complete.json()).toMatchObject({
-      xpAwarded: 150,
+      xpAwarded: 750,
       leveledUp: true,
       alreadyCompleted: false,
       quest: { status: "completed" },
     });
-    expect(complete.json().stats).toMatchObject({ totalXp: 150, level: 2 });
+    expect(complete.json().stats).toMatchObject({ totalXp: 750, level: 4 });
 
     const list = await api.app.inject({
       method: "GET",

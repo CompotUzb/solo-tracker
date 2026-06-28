@@ -12,15 +12,15 @@ import {
 export const QUEST_XP_REWARDS = {
   easy: 10,
   normal: 25,
-  hard: 60,
-  boss: 150,
-  raid: 400,
+  hard: 300,
+  boss: 750,
+  raid: 1500,
 } as const;
 
 export type QuestType = keyof typeof QUEST_XP_REWARDS;
 export const QUEST_TYPES = Object.keys(QUEST_XP_REWARDS) as QuestType[];
 
-export type QuestStatus = "active" | "completed" | "abandoned";
+export type QuestStatus = "active" | "completed" | "failed" | "archived" | "abandoned";
 
 export interface Quest {
   id: string;
@@ -47,6 +47,17 @@ export interface AddQuestInput {
   targetCount?: number;
   startsAt?: string | null;
   dueAt?: string | null;
+}
+
+export interface UpdateQuestProgressInput {
+  questId: string;
+  userId: string;
+  progressCount: number;
+}
+
+export interface ArchiveQuestInput {
+  questId: string;
+  userId: string;
 }
 
 export interface CompleteQuestResult {
@@ -130,6 +141,61 @@ export function listQuests(
           .all(userId)
   ) as QuestRow[];
   return rows.map(mapQuest);
+}
+
+export function listMainQuests(db: Db, userId: string): Quest[] {
+  const rows = db
+    .prepare(
+      `select * from quests
+       where user_id=?
+         and quest_type in ('hard','boss','raid')
+         and status in ('active','completed')
+       order by case status when 'active' then 0 else 1 end, updated_at desc, created_at desc`,
+    )
+    .all(userId) as QuestRow[];
+  return rows.map(mapQuest);
+}
+
+function requireOwnedQuest(db: Db, questId: string, userId: string): QuestRow {
+  const row = db
+    .prepare("select * from quests where id=?")
+    .get(questId) as QuestRow | undefined;
+  if (!row) throw new Error(`quest not found: ${questId}`);
+  if (row.user_id !== userId) throw new Error("quest does not belong to this user");
+  return row;
+}
+
+export function updateQuestProgress(
+  db: Db,
+  input: UpdateQuestProgressInput,
+  clock: XpClock = {},
+): Quest {
+  const row = requireOwnedQuest(db, input.questId, input.userId);
+  if (row.status !== "active") throw new Error("only active quests can be progressed");
+  if (!Number.isInteger(input.progressCount) || input.progressCount < 0) {
+    throw new Error("progressCount must be a non-negative integer");
+  }
+  const now = clock.now?.() ?? new Date().toISOString();
+  const progressCount = Math.min(input.progressCount, row.target_count);
+  db.prepare(
+    "update quests set progress_count=?,updated_at=? where id=?",
+  ).run(progressCount, now, input.questId);
+  return getQuest(db, input.questId)!;
+}
+
+export function archiveQuest(
+  db: Db,
+  input: ArchiveQuestInput,
+  clock: XpClock = {},
+): Quest {
+  const row = requireOwnedQuest(db, input.questId, input.userId);
+  if (row.status === "completed") throw new Error("completed quests cannot be archived");
+  const now = clock.now?.() ?? new Date().toISOString();
+  db.prepare("update quests set status='archived',updated_at=? where id=?").run(
+    now,
+    input.questId,
+  );
+  return getQuest(db, input.questId)!;
 }
 
 /** `/quest add` — create an active quest, deriving its XP reward from the difficulty tier. */

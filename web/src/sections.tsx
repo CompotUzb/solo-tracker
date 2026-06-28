@@ -2,6 +2,7 @@ import type { AsyncState } from "./api.js";
 import {
   formatDate,
   formatNumber,
+  mainQuestRewardSummary,
   ratioPercent,
   relativeTime,
   splitQuests,
@@ -294,7 +295,7 @@ function QuestList({
             <div className="quest-foot">
               <ProgressBar percent={percent} />
               <span className="muted">
-                {quest.progressCount}/{quest.targetCount} · +{quest.xpReward} XP
+                {quest.progressCount}/{quest.targetCount} · {mainQuestRewardSummary(quest)}
               </span>
             </div>
           </li>
@@ -330,7 +331,7 @@ export function MainQuests({ quests }: { quests: AsyncState<QuestsResponse> }) {
         {(data) => (
           <QuestList
             quests={splitQuests(data.quests).main}
-            emptyMessage="No main quests active. Take on a hard, boss, or raid quest."
+            emptyMessage="No active Main Quest. Choose a major arc to clear."
           />
         )}
       </Async>

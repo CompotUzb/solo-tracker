@@ -57,7 +57,7 @@ describe("player stats + notifications API", () => {
     const discipline = complete
       .json()
       .playerStats.find((s: { key: string }) => s.key === "discipline");
-    expect(discipline.value).toBe(4); // boss quest -> +4 discipline
+    expect(discipline.value).toBe(5); // boss quest -> +5 discipline
 
     const stats = await api.app.inject({
       method: "GET",
@@ -66,7 +66,7 @@ describe("player stats + notifications API", () => {
     expect(
       stats.json().stats.find((s: { key: string }) => s.key === "discipline")
         .value,
-    ).toBe(4);
+    ).toBe(5);
 
     const notes = await api.app.inject({
       method: "GET",

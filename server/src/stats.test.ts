@@ -55,15 +55,22 @@ describe("message stat gains", () => {
 });
 
 describe("quest stat gains", () => {
-  it("scales discipline by difficulty", () => {
+  it("uses deterministic main quest rewards for hard/boss/raid arcs", () => {
     expect(questStatGains("normal")).toEqual([
       { statKey: "discipline", delta: 2 },
     ]);
     expect(questStatGains("hard")).toEqual([
       { statKey: "discipline", delta: 3 },
+      { statKey: "technical", delta: 3 },
+    ]);
+    expect(questStatGains("boss")).toEqual([
+      { statKey: "discipline", delta: 5 },
+      { statKey: "technical", delta: 7 },
     ]);
     expect(questStatGains("raid")).toEqual([
-      { statKey: "discipline", delta: 5 },
+      { statKey: "discipline", delta: 10 },
+      { statKey: "technical", delta: 15 },
+      { statKey: "survival", delta: 5 },
     ]);
   });
 });

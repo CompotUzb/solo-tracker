@@ -50,7 +50,7 @@ describe("system output notifications", () => {
 
     expect(complete.statusCode).toBe(200);
     expect(api.notify).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "level_up", title: "Level 2 reached" }),
+      expect.objectContaining({ type: "level_up", title: "Level 4 reached" }),
     );
     expect(api.notify).toHaveBeenCalledWith(
       expect.objectContaining({
