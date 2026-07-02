@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { applyMigrations, openDatabase, type Db } from "./db.js";
 import {
+  countNotifications,
   createNotifier,
   listNotifications,
   recordNotification,
@@ -31,6 +32,19 @@ describe("notifications storage", () => {
         body: "Nice work",
         discordStatus: "skipped",
       });
+    } finally {
+      db.close();
+    }
+  });
+
+  it("counts the full notification history without limiting dashboard rows", () => {
+    const db = freshDb();
+    try {
+      recordNotification(db, { ...base, title: "Level 2 reached" }, "skipped");
+      recordNotification(db, { ...base, title: "Level 3 reached" }, "skipped");
+
+      expect(listNotifications(db, "local-user", 1)).toHaveLength(1);
+      expect(countNotifications(db, "local-user")).toBe(2);
     } finally {
       db.close();
     }

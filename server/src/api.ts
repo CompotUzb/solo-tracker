@@ -25,7 +25,11 @@ import {
   questStatGains,
   PLAYER_STAT_KEYS,
 } from "./stats.js";
-import { listNotifications, type Notifier } from "./notifications.js";
+import {
+  countNotifications,
+  listNotifications,
+  type Notifier,
+} from "./notifications.js";
 import {
   achievementNotification,
   checkAchievementsAfterLevelUp,
@@ -277,6 +281,7 @@ export function createApi({
       const limit = Number(req.query.limit ?? 50);
       return {
         userId,
+        total: countNotifications(db, userId),
         notifications: listNotifications(
           db,
           userId,

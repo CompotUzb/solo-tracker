@@ -109,6 +109,13 @@ export function listNotifications(
   return rows.map(mapNotification);
 }
 
+export function countNotifications(db: Db, userId: string): number {
+  const row = db
+    .prepare("select count(*) as count from notifications where user_id=?")
+    .get(userId) as { count: number };
+  return row.count;
+}
+
 function updateDelivery(
   db: Db,
   id: string,

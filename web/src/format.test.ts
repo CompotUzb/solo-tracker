@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  dashboardNotifications,
   mainQuestObjective,
   mainQuestProgressUnit,
   mainQuestRewardSummary,
@@ -9,7 +10,7 @@ import {
   weekdayLabel,
   xpProgressPercent,
 } from "./format.js";
-import type { Quest } from "./types.js";
+import type { Notification, Quest } from "./types.js";
 
 function quest(partial: Partial<Quest>): Quest {
   return {
@@ -27,6 +28,21 @@ function quest(partial: Partial<Quest>): Quest {
     completedAt: null,
     createdAt: "2026-06-23T00:00:00.000Z",
     updatedAt: "2026-06-23T00:00:00.000Z",
+    ...partial,
+  };
+}
+
+function notification(
+  partial: Partial<Notification> & Pick<Notification, "id" | "title">,
+): Notification {
+  return {
+    userId: "local-user",
+    type: "system",
+    body: null,
+    metadata: null,
+    discordStatus: "skipped",
+    discordMessageId: null,
+    createdAt: "2026-06-23T00:00:00.000Z",
     ...partial,
   };
 }
@@ -55,6 +71,72 @@ describe("mainQuestRewardSummary", () => {
     expect(mainQuestRewardSummary(quest({ questType: "raid", xpReward: 1500 }))).toBe(
       "+1500 XP · Technical +15 · Discipline +10 · Survival +5",
     );
+  });
+});
+
+describe("dashboardNotifications", () => {
+  it("shows at most five notifications newest first", () => {
+    const notes = Array.from({ length: 6 }, (_, index) =>
+      notification({
+        id: `n-${index}`,
+        title: `System event ${index}`,
+        createdAt: `2026-06-23T00:0${index}:00.000Z`,
+      }),
+    );
+
+    expect(dashboardNotifications(notes).map((n) => n.id)).toEqual([
+      "n-5",
+      "n-4",
+      "n-3",
+      "n-2",
+      "n-1",
+    ]);
+  });
+
+  it("hides low-priority Daily Quest generated noise when important events fill the card", () => {
+    const notes = [
+      notification({
+        id: "generated-new",
+        title: "Daily Quest generated",
+        createdAt: "2026-06-23T00:10:00.000Z",
+      }),
+      notification({
+        id: "complete",
+        title: "Daily Quest complete",
+        createdAt: "2026-06-23T00:09:00.000Z",
+      }),
+      notification({
+        id: "main",
+        title: "🏰 Main Quest Cleared",
+        createdAt: "2026-06-23T00:08:00.000Z",
+      }),
+      notification({
+        id: "level",
+        type: "level_up",
+        title: "Level 2 reached",
+        createdAt: "2026-06-23T00:07:00.000Z",
+      }),
+      notification({
+        id: "achievement",
+        type: "achievement",
+        title: "Achievement unlocked: First Quest",
+        createdAt: "2026-06-23T00:06:00.000Z",
+      }),
+      notification({
+        id: "penalty",
+        type: "penalty",
+        title: "PENALTY ZONE ACTIVE",
+        createdAt: "2026-06-23T00:05:00.000Z",
+      }),
+    ];
+
+    expect(dashboardNotifications(notes).map((n) => n.id)).toEqual([
+      "complete",
+      "main",
+      "level",
+      "achievement",
+      "penalty",
+    ]);
   });
 });
 

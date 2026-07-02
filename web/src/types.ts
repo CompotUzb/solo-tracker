@@ -57,6 +57,7 @@ export interface Notification {
 export interface NotificationsResponse {
   userId: string;
   notifications: Notification[];
+  total: number;
 }
 
 export interface DailyMetric {

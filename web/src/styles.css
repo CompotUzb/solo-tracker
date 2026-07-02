@@ -704,6 +704,11 @@ code {
 }
 
 /* System notifications */
+.notification-panel {
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
 .notification-list {
   list-style: none;
   margin: 0;
@@ -747,6 +752,12 @@ code {
 }
 .notification-side .muted {
   font-size: 0.74rem;
+}
+.notification-footer {
+  margin: 10px 4px 0;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.76rem;
 }
 
 /* Weekly report */

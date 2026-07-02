@@ -50,7 +50,7 @@ export function App() {
     refreshKey,
   ]);
   const notifications = useEndpoint<NotificationsResponse>(
-    "/api/notifications?limit=20",
+    "/api/notifications?limit=50",
     [refreshKey],
   );
   const weekly = useEndpoint<WeeklyReport>("/api/reports/weekly", [refreshKey]);

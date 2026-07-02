@@ -1,5 +1,6 @@
 import type { AsyncState } from "./api.js";
 import {
+  dashboardNotifications,
   formatDate,
   formatNumber,
   mainQuestObjective,
@@ -237,35 +238,52 @@ export function Notifications({
         emptyMessage="No notifications yet. Level ups and system events will appear here."
         loadingLabel="Loading notifications…"
       >
-        {(data) => (
-          <ul className="notification-list">
-            {data.notifications.map((n) => {
-              const meta =
-                NOTIFICATION_META[n.type] ?? NOTIFICATION_META.system;
-              return (
-                <li key={n.id} className="notification">
-                  <span className="notification-glyph" aria-hidden>
-                    {meta.glyph}
-                  </span>
-                  <span className="notification-main">
-                    <span className="notification-title">{n.title}</span>
-                    {n.body ? <span className="muted">{n.body}</span> : null}
-                  </span>
-                  <span className="notification-side">
-                    <Badge tone={n.discordStatus === "sent" ? "easy" : "muted"}>
-                      {n.discordStatus === "sent"
-                        ? "sent"
-                        : n.discordStatus === "skipped"
-                          ? "local"
-                          : n.discordStatus}
-                    </Badge>
-                    <span className="muted">{relativeTime(n.createdAt)}</span>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        {(data) => {
+          const visible = dashboardNotifications(data.notifications);
+          const total = data.total ?? data.notifications.length;
+          return (
+            <div className="notification-panel">
+              <ul className="notification-list">
+                {visible.map((n) => {
+                  const meta =
+                    NOTIFICATION_META[n.type] ?? NOTIFICATION_META.system;
+                  return (
+                    <li key={n.id} className="notification">
+                      <span className="notification-glyph" aria-hidden>
+                        {meta.glyph}
+                      </span>
+                      <span className="notification-main">
+                        <span className="notification-title">{n.title}</span>
+                        {n.body ? (
+                          <span className="muted">{n.body}</span>
+                        ) : null}
+                      </span>
+                      <span className="notification-side">
+                        <Badge
+                          tone={n.discordStatus === "sent" ? "easy" : "muted"}
+                        >
+                          {n.discordStatus === "sent"
+                            ? "sent"
+                            : n.discordStatus === "skipped"
+                              ? "local"
+                              : n.discordStatus}
+                        </Badge>
+                        <span className="muted">
+                          {relativeTime(n.createdAt)}
+                        </span>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+              {total > visible.length ? (
+                <p className="notification-footer muted">
+                  Showing latest {visible.length} of {total} notifications
+                </p>
+              ) : null}
+            </div>
+          );
+        }}
       </Async>
     </Card>
   );
