@@ -99,7 +99,7 @@ export function recordNotification(
 export function listNotifications(
   db: Db,
   userId: string,
-  limit = 50,
+  limit = 20,
 ): NotificationRecord[] {
   const rows = db
     .prepare(

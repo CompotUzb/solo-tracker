@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { loadConfig } from "./config.js";
 import { createApi } from "./api.js";
 import { openDatabase, type Db } from "./db.js";
+import { recordNotification } from "./notifications.js";
 let db: Db | undefined;
 afterEach(() => db?.close());
 describe("API", () => {
@@ -167,6 +168,49 @@ describe("API", () => {
 
     const list = await api.app.inject({ method: "GET", url: "/api/main-quests" });
     expect(list.json().quests).toHaveLength(0);
+    await api.close();
+  });
+
+  it("returns the latest twenty notifications by default while preserving total history", async () => {
+    const config = loadConfig({
+      DISCORD_TOKEN: "fake",
+      DISCORD_CLIENT_ID: "client",
+      TRACKED_GUILD_ID: "guild",
+      TRACKED_CHANNEL_IDS: "chan-1",
+      DATABASE_PATH: ":memory:",
+      SKIP_DISCORD_LOGIN: "true",
+    });
+    db = openDatabase(":memory:");
+    const api = createApi({ config, discordStatus: () => "skipped", db });
+
+    for (let index = 0; index < 25; index += 1) {
+      recordNotification(
+        db,
+        {
+          userId: "local-user",
+          type: "system",
+          title: `System event ${index}`,
+        },
+        "skipped",
+        {
+          now: () =>
+            `2026-06-23T00:${String(index).padStart(2, "0")}:00.000Z`,
+          genId: () => `notice-${index}`,
+        },
+      );
+    }
+
+    const response = await api.app.inject({
+      method: "GET",
+      url: "/api/notifications",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ total: 25 });
+    expect(response.json().notifications).toHaveLength(20);
+    expect(
+      response.json().notifications.map((n: { id: string }) => n.id),
+    ).toEqual(Array.from({ length: 20 }, (_, index) => `notice-${24 - index}`));
     await api.close();
   });
 });

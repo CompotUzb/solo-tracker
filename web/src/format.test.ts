@@ -75,25 +75,21 @@ describe("mainQuestRewardSummary", () => {
 });
 
 describe("dashboardNotifications", () => {
-  it("shows at most five notifications newest first", () => {
-    const notes = Array.from({ length: 6 }, (_, index) =>
+  it("shows at most twenty notifications newest first", () => {
+    const notes = Array.from({ length: 25 }, (_, index) =>
       notification({
         id: `n-${index}`,
         title: `System event ${index}`,
-        createdAt: `2026-06-23T00:0${index}:00.000Z`,
+        createdAt: `2026-06-23T00:${String(index).padStart(2, "0")}:00.000Z`,
       }),
     );
 
-    expect(dashboardNotifications(notes).map((n) => n.id)).toEqual([
-      "n-5",
-      "n-4",
-      "n-3",
-      "n-2",
-      "n-1",
-    ]);
+    expect(dashboardNotifications(notes).map((n) => n.id)).toEqual(
+      Array.from({ length: 20 }, (_, index) => `n-${24 - index}`),
+    );
   });
 
-  it("hides low-priority Daily Quest generated noise when important events fill the card", () => {
+  it("keeps newer generated notifications ahead of older important ones", () => {
     const notes = [
       notification({
         id: "generated-new",
@@ -131,6 +127,7 @@ describe("dashboardNotifications", () => {
     ];
 
     expect(dashboardNotifications(notes).map((n) => n.id)).toEqual([
+      "generated-new",
       "complete",
       "main",
       "level",

@@ -278,14 +278,14 @@ export function createApi({
     "/api/notifications",
     async (req) => {
       const userId = req.query.userId ?? DEFAULT_USER_ID;
-      const limit = Number(req.query.limit ?? 50);
+      const limit = Number(req.query.limit ?? 20);
       return {
         userId,
         total: countNotifications(db, userId),
         notifications: listNotifications(
           db,
           userId,
-          Number.isFinite(limit) ? limit : 50,
+          Number.isFinite(limit) ? limit : 20,
         ),
       };
     },

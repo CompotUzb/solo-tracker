@@ -67,30 +67,7 @@ export function mainQuestProgressUnit(quest: Quest): string | null {
   return unit || null;
 }
 
-export const DASHBOARD_NOTIFICATION_LIMIT = 5;
-
-function notificationPriority(notification: Notification): number {
-  const title = notification.title.toLowerCase();
-  if (
-    notification.type === "penalty" ||
-    notification.type === "level_up" ||
-    notification.type === "achievement" ||
-    title.includes("main quest cleared") ||
-    title.includes("daily quest complete") ||
-    title.includes("rank up")
-  ) {
-    return 3;
-  }
-  if (
-    notification.type === "daily_summary" ||
-    title.includes("victory") ||
-    title.includes("streak advanced")
-  ) {
-    return 2;
-  }
-  if (title.includes("daily quest generated")) return 1;
-  return notification.type === "weekly_summary" ? 2 : 2;
-}
+export const DASHBOARD_NOTIFICATION_LIMIT = 20;
 
 function newestFirst(a: Notification, b: Notification): number {
   return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -100,19 +77,7 @@ export function dashboardNotifications(
   notifications: Notification[],
   limit = DASHBOARD_NOTIFICATION_LIMIT,
 ): Notification[] {
-  const sorted = [...notifications].sort(newestFirst);
-  if (sorted.length <= limit) return sorted;
-
-  const important = sorted.filter((n) => notificationPriority(n) > 1);
-  const selected =
-    important.length >= limit
-      ? important.slice(0, limit)
-      : [
-          ...important,
-          ...sorted.filter((n) => notificationPriority(n) <= 1),
-        ].slice(0, limit);
-
-  return selected.sort(newestFirst);
+  return [...notifications].sort(newestFirst).slice(0, limit);
 }
 
 /** Percentage [0,100] of progress toward the next level, clamped and divide-by-zero safe. */

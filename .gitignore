@@ -20,6 +20,7 @@ build/
 coverage/
 .vite/
 *.tsbuildinfo
+.worktrees/
 
 # Local databases and SQLite runtime files
 data/
